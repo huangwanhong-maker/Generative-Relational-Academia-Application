@@ -224,3 +224,6 @@ Existing Infrastructure
           |
           ↓
 Trajectory + Interaction + Evolution
+
+
+# Stage 7 — Publication and DOI Registration
