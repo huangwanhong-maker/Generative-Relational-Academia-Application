@@ -1,0 +1,29 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "grrp"
+version = "0.1.0"
+description = "Reference implementation of the Generative Relational Research Protocol v0.1"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "See repository LICENSE" }
+authors = [{ name = "Serendip Commons Society" }]
+dependencies = [
+    "typer>=0.12",
+    "ruamel.yaml>=0.18",
+    "cryptography>=42",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
+[project.scripts]
+grrp = "grrp.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/grrp"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

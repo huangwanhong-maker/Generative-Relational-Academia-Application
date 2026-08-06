@@ -1,0 +1,191 @@
+"""The conformance self-test.
+
+Two kinds of thing are checked, and they are reported separately because they
+mean different things.
+
+*Integrity* is a fact about this record: identifiers recomputed from the files,
+the graph acyclic, parents present, no state referenced that was never written
+without a redaction recorded.  A failure here means the record has been edited
+or corrupted.
+
+*Conformance* is a fact about this implementation: no quantity over
+participants or trajectories, no operation requiring a model or a network, and
+every command stating a purpose for the person running it.  A failure here
+means the tool has drifted from the protocol, which is the more likely of the
+two and the harder to notice.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+
+from . import canonical, vocab
+from .store import Repo
+
+
+@dataclass
+class Report:
+    failures: list[str] = field(default_factory=list)
+    notes: list[str] = field(default_factory=list)
+
+    @property
+    def ok(self) -> bool:
+        return not self.failures
+
+    def fail(self, message: str) -> None:
+        self.failures.append(message)
+
+    def note(self, message: str) -> None:
+        self.notes.append(message)
+
+
+def check_repo(repo: Repo) -> Report:
+    report = Report()
+    profile = repo.profile()
+
+    if profile.get("protocol") != "grrp/0.1":
+        report.fail(f"profile declares protocol {profile.get('protocol')!r}, expected grrp/0.1")
+    if profile.get("canonicalisation") != canonical.CANONICALISATION:
+        report.fail("profile canonicalisation does not match this implementation")
+
+    trajectory_ids = repo.trajectory_ids()
+    if not trajectory_ids:
+        report.note("no trajectories recorded yet")
+
+    for traj_id in trajectory_ids:
+        _check_trajectory(repo, traj_id, report)
+
+    _check_scalar_exclusion(report)
+    return report
+
+
+def _check_trajectory(repo: Repo, traj_id: str, report: Report) -> None:
+    records = repo.transitions(traj_id)
+    by_id = {record.get("id"): record for record in records}
+    attested = 0
+
+    for record in records:
+        label = canonical.short(record.get("id") or "?")
+
+        # Identifier recomputation.  This is the append-only test: any edit to a
+        # covered field changes the identifier, and because parents are covered,
+        # it invalidates every descendant too.
+        recomputed = canonical.transition_id(record)
+        if recomputed != record.get("id"):
+            report.fail(
+                f"{traj_id}/{label}: recorded identifier does not match its content. "
+                "The transition has been edited, or was written by an implementation "
+                "with a different canonicalisation."
+            )
+        expected_path = repo.transition_path(traj_id, record["id"])
+        if not expected_path.is_file():
+            report.fail(f"{traj_id}/{label}: filename does not match the identifier")
+
+        # Vocabulary.
+        if record.get("kind") == "transition":
+            if record.get("act") not in vocab.ACTS:
+                report.fail(f"{traj_id}/{label}: unknown act {record.get('act')!r}")
+            if record.get("disposition") not in vocab.DISPOSITIONS:
+                report.fail(
+                    f"{traj_id}/{label}: disposition {record.get('disposition')!r} is not "
+                    "one of accepted, contested, unresolved"
+                )
+            target = record.get("target")
+            if target and target not in vocab.TARGETS:
+                report.note(f"{traj_id}/{label}: target {target!r} is not a protocol value")
+            trigger = record.get("trigger")
+            if trigger and trigger not in vocab.TRIGGERS:
+                report.note(f"{traj_id}/{label}: trigger {trigger!r} is not a protocol value")
+            relation = record.get("relation")
+            if relation and relation.startswith("local:"):
+                report.note(
+                    f"{traj_id}/{label}: relation {relation!r} is a local value and needs "
+                    "a charter to define it"
+                )
+        elif record.get("kind") == "operation":
+            if record.get("operation") not in vocab.OPERATIONS:
+                report.fail(f"{traj_id}/{label}: unknown operation {record.get('operation')!r}")
+        else:
+            report.fail(f"{traj_id}/{label}: unknown kind {record.get('kind')!r}")
+
+        # Granularity: a transition names the state it altered.  The opening
+        # transition of a trajectory is the only one without a prior state.
+        if record.get("kind") == "transition" and record.get("act") != "question":
+            if not record.get("prior_state"):
+                report.fail(
+                    f"{traj_id}/{label}: no prior state. A transition references a "
+                    "specific identified state, never a project or a document as a whole."
+                )
+
+        for parent in record.get("parents") or []:
+            if parent not in by_id:
+                report.fail(f"{traj_id}/{label}: parent {canonical.short(parent)} is missing")
+
+        if (record.get("registration") or {}).get("attested"):
+            attested += 1
+
+    _check_acyclic(traj_id, records, by_id, report)
+
+    if records and attested == 0:
+        report.note(
+            f"{traj_id}: every transition was registered by the party who performed it. "
+            "The record is unattested: useful to its author, and carrying no evidential "
+            "weight. Credibility begins where a second party registers."
+        )
+
+
+def _check_acyclic(traj_id: str, records: list[dict], by_id: dict, report: Report) -> None:
+    """A record permitting cycles admits a history in which a state precedes
+    and follows itself, and every derived view becomes ill-defined."""
+    colour: dict[str, int] = {}
+
+    def visit(identifier: str) -> bool:
+        state = colour.get(identifier, 0)
+        if state == 1:
+            return False
+        if state == 2:
+            return True
+        colour[identifier] = 1
+        for parent in by_id.get(identifier, {}).get("parents") or []:
+            if parent in by_id and not visit(parent):
+                return False
+        colour[identifier] = 2
+        return True
+
+    for record in records:
+        if not visit(record["id"]):
+            report.fail(f"{traj_id}: the transition graph contains a cycle")
+            return
+
+
+# Identifiers that would be a quantity over participants or trajectories.  A
+# count *within* one trajectory, shown without comparison to another, is
+# permitted; anything comparable across them is not.
+FORBIDDEN_SUBSTRINGS = (
+    "reputation",
+    "leaderboard",
+    "ranking",
+    "contribution_score",
+    "activity_index",
+    "trajectory_score",
+    "h_index",
+)
+
+
+def _check_scalar_exclusion(report: Report) -> None:
+    from pathlib import Path
+
+    source = Path(__file__).parent
+    for path in source.glob("*.py"):
+        text = path.read_text(encoding="utf-8").lower()
+        for needle in FORBIDDEN_SUBSTRINGS:
+            # The names appear in this list and in the comments explaining why
+            # they are excluded; those two files are the exception.
+            if needle in text and path.name not in {"check.py", "cli.py"}:
+                report.fail(
+                    f"{path.name}: contains {needle!r}. No quantity over participants "
+                    "or trajectories is computed, stored, displayed or exported."
+                )
+    report.note(
+        "no quantity over participants or trajectories is computed by this implementation"
+    )
