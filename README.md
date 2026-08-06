@@ -7,8 +7,10 @@ which assumption was abandoned, which objection forced the abandonment, which ap
 months and set aside, which direction was chosen over which alternative and on what ground. GRA is a
 protocol, and a reference tool, for keeping that record.
 
-**Stage 0 — design and standardisation.** Four papers are drafted; the protocol is specified as
-**GRRP v0.1**; **no implementation has been built, deployed, or evaluated.**
+**Stage 0 — design and standardisation.** Four papers are drafted and the protocol is specified as
+**GRRP v0.1**, which has **no deployment history and no evidence of use** — every requirement in it is
+a proposal about what such use would need. The reference tool [`grrp`](grrp/) is built to the
+**personal tier** and has not yet been used on real work.
 
 ---
 
@@ -291,7 +293,7 @@ weakened.
 ```
 papers/   the four working drafts (CC BY-NC 4.0)
 notes/    dense working notes on each paper, a glossary, and a gap analysis  ← start here
-plans/    GRRP-implementation-plan.md — the builder-facing plan for the reference tool
+plans/    implementation-plan.md — the single build plan, as a checklist
 grrp/     the reference implementation — M0 + M1, personal tier, working
 ```
 
@@ -314,7 +316,7 @@ Notes: [Paper I](notes/paper-I-design-and-requirements.md) ·
 
 [`grrp/`](grrp/) — a command-line tool recording trajectories as typed transitions in an ordinary git
 repository, in plain text, **with no server, no account, and no network**. Plan:
-[plans/GRRP-implementation-plan.md](plans/GRRP-implementation-plan.md).
+[plans/implementation-plan.md](plans/implementation-plan.md).
 
 ```bash
 cd grrp && pip install -e . && python -m pytest

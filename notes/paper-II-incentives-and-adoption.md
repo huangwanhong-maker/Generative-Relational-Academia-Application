@@ -505,7 +505,7 @@ follows from collective benefit · that the empirical record supports the propos
   "dissolves hierarchy" (Claim 6.2). Permitted: "changes what competition rewards".
 - **Cross-field matching / similar-trajectory search must not appear in any adoption argument**
   (Claim 13.5) — it is a late corpus property that returns nothing to an adopting party.
-  *This directly affects `plans/implementation_plan.md` Stage 5.*
+  *This is why the retired plan's Stage 5 was struck.*
 - **P2 is the project's own risk register entry:** ship the personal tier, but treat "personal tier
   adopted, group tier never" as the named failure mode, not a success.
 - The **absorption test** should be a stated evaluation criterion for the project itself — and must

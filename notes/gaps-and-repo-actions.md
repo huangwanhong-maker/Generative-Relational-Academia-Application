@@ -10,15 +10,14 @@ require**, and **the action**. Ordered by how much damage the divergence does.
 ### A1. "GRA Commit" is the wrong word — and it is the exact word the papers refuse
 
 **Repo:** [README.md](../README.md) has a section headed *"GRA Commit Concept"*, and
-[plans/implementation_plan.md](../plans/implementation_plan.md) uses "Commit" throughout (Stage 1
+the retired `plans/implementation_plan.md` used "Commit" throughout (Stage 1
 "Semantic Commit System", "Create GRA commits", "commit types").
 
 **Papers:** *"the epistemic unit is called a **transition** throughout, in place of a **commit**, since
 the protocol is layered over version-control systems whose commits appear in the same repositories and
 **the collision would mislead every implementer**."* (Paper I §2.7)
 
-**Action:** rename everywhere → **transition**. ✅ Done in README; `plans/implementation_plan.md` still
-needs it.
+**Action:** rename everywhere → **transition**. ✅ Done in the README, the new plan, and the tool.
 
 ---
 
@@ -39,7 +38,7 @@ false about the fields this protocol most concerns, and would exert pressure tow
 closure."* And "Progress" is not an act at all.
 
 **Action:** replace with `act × target × relation × trigger × disposition` (see
-[glossary.md](glossary.md)). ✅ Done in README; `implementation_plan.md` still needs it.
+[glossary.md](glossary.md)). ✅ Done in the README, the new plan, and the tool.
 
 ---
 
@@ -83,8 +82,8 @@ here."**
 
 **Action:** re-order so the personal tier (three acts + append-only log + derived views + `open`
 register + **`export` on release**) is the first shippable unit, matching
-[plans/GRRP-implementation-plan.md](../plans/GRRP-implementation-plan.md) §5. ✅ Reflected in README's
-new status section; `implementation_plan.md` still needs restructuring.
+[plans/implementation-plan.md](../plans/implementation-plan.md). ✅ Reflected in the README and in the
+new single plan, whose M1 is marked as the ship point.
 
 ---
 
@@ -98,8 +97,9 @@ They are not two views of one plan; they encode **different designs**. The GRRP 
 from the specification.
 
 **Action:** ✅ **`plans/implementation_plan.md` has been retired** (removed; recoverable from git
-history). `plans/GRRP-implementation-plan.md` is the single authority, and the specification governs
-where the two differ.
+history), and `plans/GRRP-implementation-plan.md` has been folded into a single
+[plans/implementation-plan.md](../plans/implementation-plan.md). The specification governs where that
+plan and the papers differ.
 
 ---
 
@@ -189,7 +189,7 @@ Worth pinning here because each is described as *the* likely error.
 |---|---|
 | Notes folder with per-paper notes + glossary | ✅ this folder |
 | README rewritten against the papers | ✅ |
-| `plans/implementation_plan.md` retired (it conflicted; the GRRP plan is the authority) | ✅ |
+| Both old plans folded into one [plans/implementation-plan.md](../plans/implementation-plan.md) | ✅ |
 | `grrp` reference implementation, M0 + M1 | ✅ [grrp/](../grrp/) — 36 tests passing, 3 skipped and named for M2–M4 |
 | Licence question for code and for the specification's forkability | ❌ **user's call** — CC BY-NC is not a software licence, and Req. 19.4 needs the specification forkable |
 

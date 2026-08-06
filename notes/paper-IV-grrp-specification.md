@@ -8,7 +8,7 @@ Source: [papers/GRA-paper-IV-...pdf](../papers/GRA-paper-IV-Specifying-the-GRRP.
 fixes conformance. **Published as GRRP v0.1** — explicitly unfinished, with an amendment procedure,
 *because a specification published as finished would contradict the account it specifies.*
 
-> This is the paper the implementation is built against. [plans/GRRP-implementation-plan.md](../plans/GRRP-implementation-plan.md)
+> This is the paper the implementation is built against. [plans/implementation-plan.md](../plans/implementation-plan.md)
 > is its builder-facing restatement — **the specification governs where the two differ.**
 
 **Conformance vocabulary:** RFC 2119 `must / must not / should / may`. A `should` may be departed from

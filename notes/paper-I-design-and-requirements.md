@@ -627,7 +627,7 @@ from parties who benefit from the present invisibility of others' contributions*
 
 - README/plans must not promise **progress reports, trajectory health, similarity ranking,
   contribution scores** as protocol features. Every such thing is **L3** and most are forbidden as
-  scalars (R10). *(The current `plans/implementation_plan.md` Stages 4–5 need this correction — see
+  scalars (R10). *(The retired `implementation_plan.md` had these as Stages 4–5 — see
   [gaps-and-repo-actions.md](gaps-and-repo-actions.md).)*
 - The word **"commit"** should not name the epistemic unit — the paper deliberately says
   **transition** to avoid collision with git commits in the same repository. The README's
