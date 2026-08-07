@@ -313,7 +313,7 @@ def test_the_trajectory_is_drawn(trajectory):
     workspace.run("challenge", "-m", "This omits institutional power.")
 
     svg = ui.graph(workspace.repo, traj_id)
-    assert svg.startswith("<div class=scroll><svg")
+    assert svg.startswith("<div class='scroll'><svg")
     assert "Trust obtains between" in svg
     assert "question" in svg and "position" in svg and "objection" in svg
     assert "challenge" in svg, "edges are labelled by the act that made them"
@@ -430,3 +430,47 @@ def test_the_page_and_the_terminal_write_the_same_record(trajectory):
     assert from_page["kind"] == "transition"
     assert from_page["id"] == canonical.transition_id(from_page)
     assert workspace.run("check").exit_code == 0
+
+
+# --- the drawing as a file ---------------------------------------------------
+
+def test_the_exported_drawing_is_well_formed_xml(trajectory):
+    """An .svg file is parsed as XML, not HTML: unquoted attributes are legal
+    in a page and are a parse error in a file."""
+    import xml.etree.ElementTree as ET
+
+    workspace, traj_id = trajectory
+    workspace.run("claim", traj_id, "-m", "A position.")
+    workspace.run("challenge", "-m", "An objection.")
+
+    svg = ui.standalone_svg(workspace.repo, traj_id)
+    root = ET.fromstring(svg.split("?>", 1)[1])
+    assert root.tag.endswith("svg")
+
+
+def test_the_exported_drawing_carries_its_own_colours_and_nothing_else(trajectory):
+    """It will be looked at on a light background and a dark one, and there is
+    no telling which. It must also reach for nothing: a drawing that phones
+    somewhere is not a drawing of a record that needs no network."""
+    workspace, traj_id = trajectory
+    workspace.run("claim", traj_id, "-m", "A position.")
+
+    svg = ui.standalone_svg(workspace.repo, traj_id)
+    assert "prefers-color-scheme: dark" in svg
+    assert "<script" not in svg
+    assert svg.count("http") == svg.count("http://www.w3.org"), "no external references"
+
+
+def test_grrp_graph_writes_a_file(trajectory, tmp_path):
+    workspace, traj_id = trajectory
+    workspace.run("claim", traj_id, "-m", "A position.")
+    out = tmp_path / "traj.svg"
+    workspace.run("graph", traj_id, "-o", str(out))
+    assert out.is_file()
+    assert out.read_text(encoding="utf-8").startswith("<?xml")
+
+
+def test_graphing_an_empty_trajectory_refuses_rather_than_writing_nothing(workspace):
+    workspace.run("new", "A question", "--title", "q")
+    # The opening question is a state, so there is something to draw.
+    assert "<svg" in ui.standalone_svg(workspace.repo, "q")

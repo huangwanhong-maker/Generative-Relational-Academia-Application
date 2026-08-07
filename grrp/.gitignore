@@ -5,3 +5,6 @@ __pycache__/
 build/
 dist/
 .venv/
+
+# Demo output from examples/walkthrough.sh. Yours to delete.
+grrp-walkthrough/

@@ -233,7 +233,7 @@ def graph(repo: Repo, traj_id: str) -> str:
 
     parts = [
         f"<svg viewBox='0 0 {width} {height}' width='{width}' height='{height}' "
-        "role=img aria-label='trajectory'>"
+        "role='img' aria-label='trajectory'>"
     ]
     for prior, posterior, record in edges:
         if prior not in place or posterior not in place:
@@ -243,8 +243,8 @@ def graph(repo: Repo, traj_id: str) -> str:
         y2 += node_h / 2
         mid = (x1 + x2) / 2
         parts.append(
-            f"<path class=e-line d='M{x1},{y1} C{mid},{y1} {mid},{y2} {x2},{y2}'/>"
-            f"<text class=e-label x='{mid - 18}' y='{(y1 + y2) / 2 - 5}'>"
+            f"<path class='e-line' d='M{x1},{y1} C{mid},{y1} {mid},{y2} {x2},{y2}'/>"
+            f"<text class='e-label' x='{mid - 18}' y='{(y1 + y2) / 2 - 5}'>"
             f"{_e(record.get('act'))}</text>"
         )
 
@@ -258,20 +258,60 @@ def graph(repo: Repo, traj_id: str) -> str:
         elif state_id in unresolved:
             classes += " open"
         else:
-            group = " class=n-past"
+            group = " class='n-past'"
         parts.append(f"<g{group}>")
         parts.append(
             f"<rect class='{classes}' x='{x}' y='{y}' width='{node_w}' height='{node_h}' rx='5'/>"
             f"<title>{_e(_headline(repo, traj_id, state_id))}</title>"
-            f"<text class=n-kind x='{x + 10}' y='{y + 15}'>{_e(label)}</text>"
+            f"<text class='n-kind' x='{x + 10}' y='{y + 15}'>{_e(label)}</text>"
         )
         for index, line in enumerate(_wrap(_headline(repo, traj_id, state_id))):
             parts.append(
-                f"<text class=n-text x='{x + 10}' y='{y + 32 + index * 15}'>{_e(line)}</text>"
+                f"<text class='n-text' x='{x + 10}' y='{y + 32 + index * 15}'>{_e(line)}</text>"
             )
         parts.append("</g>")
     parts.append("</svg>")
-    return f"<div class=scroll>{''.join(parts)}</div>"
+    return f"<div class='scroll'>{''.join(parts)}</div>"
+
+
+STANDALONE_STYLE = """
+  .n-box { fill:#ffffff; stroke:#d9d6d1; }
+  .n-box.live { stroke:#1f6f4a; stroke-width:2; }
+  .n-box.open { stroke:#8a5a00; stroke-width:2; }
+  .n-text { fill:#1a1a1a; font:12px Georgia,serif; }
+  .n-kind { fill:#6b6b6b; font:10px Menlo,monospace; letter-spacing:.08em; }
+  .n-past .n-text { fill:#8d8983; }
+  .e-line { stroke:#c9c5bf; fill:none; stroke-width:1.5; }
+  .e-label { fill:#6b6b6b; font:10px Menlo,monospace; }
+  @media (prefers-color-scheme: dark) {
+    .n-box { fill:#1d1c1a; stroke:#3a3735; }
+    .n-box.live { stroke:#6fc59a; }
+    .n-box.open { stroke:#d5a04a; }
+    .n-text { fill:#e8e6e3; }
+    .n-kind, .e-label { fill:#9a9691; }
+    .n-past .n-text { fill:#6a6560; }
+    .e-line { stroke:#3a3735; }
+  }
+"""
+
+
+def standalone_svg(repo: Repo, traj_id: str) -> str:
+    """The drawing as a file that stands on its own.
+
+    The page gets its colours from the document; a file has to carry its own,
+    and has to read on a light background and a dark one, because it will be
+    looked at in both and there is no telling which.
+    """
+    markup = graph(repo, traj_id)
+    if "<svg" not in markup:
+        raise errors.GrrpError("nothing recorded in this trajectory yet")
+    inner = markup.split("<svg", 1)[1].rsplit("</svg>", 1)[0]
+    attributes, body = inner.split(">", 1)
+    return (
+        "<?xml version='1.0' encoding='UTF-8'?>\n"
+        f"<svg xmlns='http://www.w3.org/2000/svg'{attributes}>"
+        f"<style>{STANDALONE_STYLE}</style>{body}</svg>\n"
+    )
 
 
 # --------------------------------------------------------------------------- #

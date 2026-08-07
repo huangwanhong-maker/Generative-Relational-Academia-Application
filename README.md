@@ -37,6 +37,138 @@ on real work.
 
 ---
 
+## Gallery
+
+Everything below is real output from a real record — the philosophy case from the specification,
+built by [examples/walkthrough.sh](grrp/examples/walkthrough.sh). Nothing here is a mock-up, and the
+command that produced each one is named.
+
+### The trajectory
+
+<img src="docs/gallery/trajectory.svg" alt="A trajectory drawn as a directed acyclic graph: a question, a claim, an objection, a transformation, a connection, and two divergent positions" width="100%">
+
+```bash
+grrp graph -o trajectory.svg
+```
+
+One column per step away from the question. Edges are labelled by the act that made them. The two
+positions on the right **diverged, and are drawn identically** — nothing in the picture designates a
+principal line, because nothing in the record does. In inquiry a fork is frequently the correct
+outcome, so plurality is the normal shape of a healthy record rather than an unfinished one.
+
+The objection in amber is `unresolved` and has never been answered. It stays there.
+
+### Where the work stands
+
+```console
+$ grrp show
+trust   (trust)
+  question   Is trust a property obtaining between individuals?
+
+  live positions
+    960f13b89624  Narrow the account to institutional settings.
+    9168b1900d17  Keep the general scope and weaken the claim.
+    these diverged. Neither is the canonical one.
+
+  unanswered
+    a670a1a0d460  question    Is trust a property obtaining between individuals?
+    68985dd9b7cb  challenge   The revision cannot now distinguish trust from complian…
+
+  unattested throughout - useful to you, evidence to nobody
+```
+
+Derived from the log, never stored. The last line is the honest one: **a record you registered
+yourself is useful to you and is evidence to nobody.**
+
+### What you still owe an answer to
+
+```console
+$ grrp open
+trust - trust
+  a670a1a0d460  question     2026-08-07T11:48:32Z
+      Is trust a property obtaining between individuals?
+  68985dd9b7cb  challenge    2026-08-07T11:48:34Z
+      The revision cannot now distinguish trust from compliance.
+      against b9493578195b
+```
+
+This is also **the entry path**. Each item is an identified state that someone holding no prior
+standing in your work can reference in a challenge, a connection or a verification — and be judged on
+the act itself, not on who they are.
+
+### What a ground leaves disclosable
+
+```console
+$ grrp disclose 616bb79843 --class private --ground appropriability
+disclosed 616bb79843a1  at private
+  ground   appropriability - the content whose disclosure would destroy that excludability
+
+  What this ground leaves disclosable, and what you must still disclose:
+    appropriability: the existence of the work, the questions pursued, the decisions
+    taken and their reasons, and negative results
+
+  Misapplied, this is: rent-seeking secrecy - secrecy obtained on an economic
+  justification that does not apply.
+```
+
+The residue is surfaced at the moment of withholding, because it is the **one question a reader can
+always ask**: was what the ground leaves disclosable in fact disclosed? A declaration accompanied by
+its residue costs the declaring party something; one without it costs nothing.
+
+### What it refuses
+
+The most characteristic thing about the tool is what it will not do.
+
+```console
+$ grrp register 3bd6fc72e6
+[C2] you cannot register your own act. Credibility follows from the distribution of
+registrations across parties who did not coordinate, and follows from no property of
+the record itself.
+
+$ grrp disclose 687087cf --class private --ground hazard
+[C7] disclosure may widen and never narrow. 687087cf329f is at 'public'; 'private'
+is narrower. A party who has read a record retains what they read, so an operation
+offering the appearance of withdrawal would misdescribe to your own participants a
+state of affairs obtaining outside this record.
+
+$ grrp disclose 616bb79843 --release-at 2030-01-01
+refused: a schedule may be shortened, never extended (2027-06-01).
+  Recording the attempt, because it should be visible that it was made.
+[C7] a delay that can be extended indefinitely is a permanent withholding made to
+look temporary.
+```
+
+Each refusal names the constraint and says what to do instead, because a protocol that refuses things
+without saying why reads as a bug.
+
+### The document it emits
+
+```bash
+grrp release && grrp export <release> -o paper.md
+```
+
+[docs/gallery/release.md](docs/gallery/release.md) — the released state, **the chain of transitions
+that produced it**, the parties with their CRediT roles, the content absorbed from elsewhere with its
+attribution, and the objections standing unresolved at the moment of release. Assembled from records
+made in the course of the work, with no additional writing.
+
+That last section is the one no other process can produce, and the reason adoption does not require
+anyone to stop publishing.
+
+### The local page
+
+```bash
+grrp ui
+```
+
+Starts records (a directory, and a git repository inside it if you want one), records any act,
+registers a colleague's proposal, and draws the trajectory above. It is **Level 3 — an application
+over the record, outside conformance**: everything it offers is available from the command line, no
+module of the record imports it, and a test asserts that a record written from the page and one
+written from the terminal are the same record.
+
+---
+
 ## The argument in four steps
 
 **1. The artefact is weakening as evidence.**

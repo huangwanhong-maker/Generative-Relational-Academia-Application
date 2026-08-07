@@ -1841,6 +1841,32 @@ def export_cmd(
         _echo(document)
 
 
+@command(name="graph")
+def graph_cmd(
+    traj: str = typer.Argument(None, help="Trajectory."),
+    out: Path = typer.Option(None, "-o", "--out", help="Write an SVG file."),
+) -> None:
+    """Draw the trajectory: one column per step away from the question.
+
+    Purpose (for you): to see the shape of what you have been doing — where it
+    forked, what is still live, what is hanging — in the form you would draw on
+    a whiteboard to explain it to somebody.
+
+    Divergent branches are drawn identically. Nothing in the picture designates
+    a principal line, because nothing in the record does.
+    """
+    from . import ui
+
+    repo = _repo()
+    traj_id = repo.resolve_trajectory(traj)
+    svg = ui.standalone_svg(repo, traj_id)
+    if out:
+        out.write_bytes(svg.encode("utf-8"))
+        _echo(f"written to {out}")
+    else:
+        _echo(svg)
+
+
 @command(name="ui")
 def ui_cmd(
     port: int = typer.Option(7373, help="Port on the loopback interface."),
