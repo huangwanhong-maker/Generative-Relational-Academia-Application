@@ -221,6 +221,25 @@ def _check_trajectory(repo: Repo, traj_id: str, report: Report) -> None:
         )
 
 
+def _withheld_on_receipt(repo: Repo) -> set[str]:
+    """States whose content a sender could not disclose to us.
+
+    A gap nobody can account for is tampering. A gap the record itself explains
+    is separability working: the skeleton, the graph and the identifiers are
+    all intact, and only the content is absent.
+    """
+    from .store import read_yaml
+
+    received = repo.grrp_dir / "received"
+    if not received.is_dir():
+        return set()
+    withheld: set[str] = set()
+    for path in received.glob("*.yaml"):
+        manifest = (read_yaml(path).get("manifest") or {})
+        withheld.update(manifest.get("content_withheld") or [])
+    return withheld
+
+
 def views_module():
     from . import views
 
@@ -245,8 +264,16 @@ def _check_content(repo: Repo, traj_id: str, records: list[dict], report: Report
             if record.get(key):
                 referenced.add(record[key])
 
+    sealed = repo.grrp_dir / "sealed"
     for state_id in sorted(referenced):
         if repo.state_path(traj_id, state_id).is_file():
+            continue
+        if (sealed / f"{state_id.split(':')[-1]}.md").is_file():
+            report.note(
+                f"{traj_id}/{canonical.short(state_id)}: sealed. The record says a state with "
+                "this identifier was held at this time, and says nothing about what it was. "
+                "It generates nothing while sealed."
+            )
             continue
         operation = removed.get(state_id)
         if operation:
@@ -256,11 +283,18 @@ def _check_content(repo: Repo, traj_id: str, records: list[dict], report: Report
                 "position in the graph and "
                 "the record of the removal all remain."
             )
+        elif state_id in _withheld_on_receipt(repo):
+            report.note(
+                f"{traj_id}/{canonical.short(state_id)}: content was withheld when this record "
+                "was obtained, because the sender could not disclose it here. The skeleton, "
+                "its position in the graph and its identifier are intact."
+            )
         else:
             report.fail(
-                f"{traj_id}/{canonical.short(state_id)}: content is missing and no redaction "
-                "was recorded. Either the file was deleted outside grrp, or the record has "
-                "been tampered with."
+                f"{traj_id}/{canonical.short(state_id)}: content is missing and nothing "
+                "accounts for it - no redaction was recorded, it is not sealed, and it was "
+                "not withheld when obtained. Either the file was deleted outside grrp, or "
+                "the record has been tampered with."
             )
 
     # The graph must be unaffected by a removal.

@@ -7,8 +7,8 @@ where the two differ.**
 A command-line tool that records the trajectory of an inquiry as **typed transitions** in an ordinary
 git repository, in plain text, **with no server, no account, and no network**.
 
-**Status: M0–M3.** All eight acts, redaction, attestation by a second party, attribution and
-absorption, and disclosure on grounds. Bundling and continuation are M4 and are not built.
+**Status: M0–M4.** All eight acts, redaction, attestation, attribution and absorption, grounded
+disclosure, and portability. **All eight acceptance tests pass.** M5 is the conformance suite.
 
 ---
 
@@ -70,6 +70,42 @@ state absorbed has one instrument, and it is the disclosure class of that state.
 `grrp contest` records that an attribution is wrong. Nothing is deleted or altered, and **no party is
 empowered to settle it** — what the record contributes is that both positions are visible with their
 dates.
+
+### Leaving
+
+```bash
+grrp bundle -o traj.zip        # the complete record: no permission, no service
+grrp continue traj.zip         # anywhere, under any implementation
+grrp profile --json            # what another implementation needs to read it
+grrp deposit <release> -o dir/ # an archival package, released material only
+grrp custody add "the departmental archive"
+grrp custody succession "passes to …"
+```
+
+**Portability is not export.** A data dump leaves you with an archive. What matters is that the
+record can be *continued* elsewhere, with what you record next referencing what you obtained as
+parents — **one graph, not two**. That capacity is the only bound this design places on the authority
+of anyone holding a position over your record, including whoever wrote this tool.
+
+Records that arrive are **copied byte for byte and never normalised** — rewriting them would
+invalidate their signatures. A signature that will not verify, a parent that is absent, a version
+this tool cannot read: each is **retained and marked**, never discarded, because discarding what an
+implementation does not understand is how a record quietly becomes a different record.
+
+Two parties continuing the same record independently produce **a divergence**. Both are kept, neither
+is principal, and no reconciliation is offered.
+
+### Not ready to show anyone
+
+```bash
+grrp seal -m "…"          # records that you held this, at this time. Not what it is.
+grrp openseal <state>     # later, when you choose
+```
+
+It **does not establish priority** — priority is a community's recognition of a claim, and no tool
+manufactures that. A sealed state **generates nothing**: no objection, no connection, no encounter,
+because nobody can see it. And an unanchored time is your own assertion; it becomes evidence to
+someone who does not trust you only if you publish the identifier somewhere you do not control.
 
 ### Withholding
 

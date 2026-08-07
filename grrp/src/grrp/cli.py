@@ -19,6 +19,7 @@ from pathlib import Path
 import typer
 
 from . import (
+    bundle,
     canonical,
     check as check_module,
     editor,
@@ -172,6 +173,7 @@ PROMPTS = {
     "verify": "What was the outcome? Say what you checked and what came of it.",
     "withdraw": "Why are you withdrawing this registration?",
     "contest": "What is wrong with the attribution? Say what the record should say.",
+    "seal": "What are you recording now that you are not ready to show anyone?",
     "new": "What are you actually trying to find out?",
 }
 
@@ -279,7 +281,11 @@ def init(
         "# The local event plane is never exported and never published.\n"
         "events/\n"
         "# Private keys never leave this machine.\n"
-        "keys/*.key\n",
+        "keys/*.key\n"
+        "# Sealed content is disclosed to nobody until you open it.\n"
+        "sealed/\n"
+        "# Bundles obtained from elsewhere are kept here, not republished.\n"
+        "received/\n",
         encoding="utf-8",
     )
 
@@ -308,13 +314,25 @@ def init(
 
 
 @command()
-def profile() -> None:
+def profile(
+    json_out: bool = typer.Option(False, "--json", help="Machine-readable, for another implementation."),
+) -> None:
     """Print what another implementation would need to read your records.
 
     Purpose (for you): to know which protocol version, hash and vocabularies
     your record commits to, before you rely on anyone else being able to read it.
+
+    Two implementations exchanging records must agree on the record structure,
+    the act and disposition vocabularies, the bound vocabularies and their
+    versions, the identifier construction and the signature scheme. On nothing
+    else -- not storage, not transport, not interface, not serialisation.
     """
     repo = _repo()
+    if json_out:
+        import json
+
+        _echo(json.dumps(bundle.declaration(repo), indent=2, sort_keys=True))
+        return
     data = repo.profile()
     for key, value in data.items():
         _echo(f"{key:18} {value}")
@@ -1364,6 +1382,320 @@ def grounds_cmd() -> None:
     _echo("The set is closed. A restriction fitting none of the four is inadmissible,")
     _echo("because a community free to invent grounds is free to withhold anything by")
     _echo("naming a reason.")
+
+
+# --------------------------------------------------------------------------- #
+# the open tier
+# --------------------------------------------------------------------------- #
+
+
+@command(name="bundle")
+def bundle_cmd(
+    traj: str = typer.Argument(None, help="Trajectory. Defaults to all of them."),
+    out: Path = typer.Option(Path("trajectory.zip"), "-o", "--out", help="Where to write it."),
+    include_restricted: bool = typer.Option(
+        False,
+        "--include-restricted",
+        help="Include content restricted below the widest class. Off by default.",
+    ),
+) -> None:
+    """Pack the complete record so it can be continued elsewhere.
+
+    Purpose (for you): so that leaving -- a service, a group, an institution --
+    costs you the arrangement and not the work. You can take this to another
+    machine, another implementation, or nobody in particular, and continue.
+
+    That capacity is the only bound this design places on the authority of
+    anyone holding a position over your record, including whoever wrote this
+    tool. There are no rules here addressed to position holders, because
+    enforcing such rules needs an enforcing party, and that party would hold a
+    position in turn.
+    """
+    repo = _repo()
+    traj_ids = [repo.resolve_trajectory(traj)] if traj else repo.trajectory_ids()
+    if not traj_ids:
+        raise errors.GrrpError("nothing to bundle yet")
+
+    manifest = bundle.write(repo, out, traj_ids, include_restricted=include_restricted)
+    _echo(f"bundled  {out}")
+    for traj_id in traj_ids:
+        _echo(f"  {traj_id}")
+    if manifest["content_withheld"]:
+        _echo("")
+        _echo("  content withheld for these states, the skeletons travelling without it:")
+        for state_id in manifest["content_withheld"]:
+            _echo(f"    {canonical.short(state_id)}")
+        _echo("  pass --include-restricted if the recipient can honour the class.")
+    _echo("")
+    _echo("  Continue it anywhere: grrp continue " + out.name)
+
+
+@command(name="continue")
+def continue_cmd(
+    source: Path = typer.Argument(..., help="A bundle to continue."),
+) -> None:
+    """Continue a record obtained from elsewhere, as one graph.
+
+    Purpose (for you): to pick up a line of work where another party left it --
+    or to carry your own between machines -- without asking anyone's permission
+    and without the two copies becoming two records.
+
+    Nothing that arrives is altered, and that includes normalisation: rewriting
+    received records into this tool's preferred form would invalidate their
+    signatures. What cannot be verified is kept and marked, because discarding
+    what an implementation does not understand is how a record quietly becomes
+    a different record.
+    """
+    repo = _repo()
+    if not source.is_file():
+        raise errors.GrrpError(f"no bundle at {source}")
+
+    manifest = bundle.read_manifest(source)
+    version = manifest.get("protocol")
+    if version != store.PROTOCOL:
+        kept = repo.grrp_dir / "received" / source.name
+        kept.parent.mkdir(parents=True, exist_ok=True)
+        kept.write_bytes(source.read_bytes())
+        raise errors.GrrpError(
+            f"this bundle is {version!r}; this implementation is {store.PROTOCOL!r}.\n"
+            f"Kept unprocessed at {kept}. Records are not read as though they were of a "
+            "version they are not: a record created under one version asserts what that "
+            "version's fields meant."
+        )
+
+    receipt = bundle.apply(repo, source)
+
+    _echo(f"continued from {source.name}")
+    for traj_id in receipt.trajectories:
+        _echo(f"  {traj_id}")
+    for identifier in receipt.added:
+        _echo(f"  + {identifier[:12]}")
+    for identifier in receipt.already_held:
+        _echo(f"  = {identifier[:12]}  (already held, untouched)")
+
+    if receipt.unverified:
+        _echo("")
+        _echo("  unverified - retained and marked, not discarded:")
+        for identifier in receipt.unverified:
+            _echo(f"    {identifier}")
+        _echo("  Either the registrar's key is unknown here, or the signature does not verify.")
+    if receipt.missing_parents:
+        _echo("")
+        _echo("  parents not present. The subgraph is retained and is not complete;")
+        _echo("  nothing has been synthesised to fill the gaps:")
+        for identifier in sorted(set(receipt.missing_parents)):
+            _echo(f"    {identifier}")
+    if receipt.content_withheld:
+        _echo("")
+        _echo("  content withheld by the sender for some states; their skeletons are here.")
+
+    _echo("")
+    _echo("  Anything you record now references these as parents: one graph, not two.")
+    _commit(repo, [repo.root / "trajectories"], f"continue {source.name}")
+
+
+@command(name="deposit")
+def deposit_cmd(
+    release_ref: str = typer.Argument(..., help="The release to deposit."),
+    out: Path = typer.Option(None, "-o", "--out", help="Directory to write the package to."),
+    identifier: str = typer.Option(
+        None, "--identifier", help="Record an identifier an archive has issued."
+    ),
+) -> None:
+    """Package a release for an archive, or record the identifier one issued.
+
+    Purpose (for you): a citable, archived object with its lineage attached,
+    held somewhere that outlives your laptop and your institution.
+
+    Released material only. Depositing sealed or restricted content with a
+    third party would place it outside the disclosure regime that governs it.
+    """
+    repo = _repo()
+    traj_id, release = repo.resolve_release(release_ref)
+
+    if identifier:
+        record = store.new_operation(
+            trajectory=traj_id,
+            operation="deposit_recorded",
+            performer=repo.party(),
+            subject=release["id"],
+            payload={"identifier": identifier, "scheme": store.external_reference(identifier)["scheme"]},
+            parents=[release["id"]],
+        )
+        path = repo.append_transition(traj_id, record)
+        _echo(f"recorded  {identifier}  for release {canonical.short(release['id'])}")
+        _commit(repo, [path], f"deposit {canonical.short(record['id'])}")
+        return
+
+    directory = out or Path(f"deposit-{canonical.short(release['id'])}")
+    directory.mkdir(parents=True, exist_ok=True)
+    (directory / "release.md").write_text(
+        export.render_release(repo, traj_id, release), encoding="utf-8"
+    )
+    store.write_yaml(directory / "release.yaml", dict(release))
+    store.write_yaml(
+        directory / "declaration.yaml",
+        {
+            "protocol": store.PROTOCOL,
+            "deposited": store.now(),
+            "trajectory": traj_id,
+            "release": release["id"],
+            "declaration": bundle.declaration(repo),
+        },
+    )
+    bundle.write(repo, directory / "record.zip", [traj_id], include_restricted=False)
+
+    _echo(f"packaged  {directory}")
+    _echo("  release.md         the citable document, with its lineage")
+    _echo("  release.yaml       the release record")
+    _echo("  declaration.yaml   what another implementation needs to read it")
+    _echo("  record.zip         the trajectory, continuable elsewhere")
+    _echo("")
+    _echo("  Deposit it with an archive that operates independently of this")
+    _echo("  implementation and states its preservation commitments, then:")
+    _echo(f"    grrp deposit {canonical.short(release['id'])} --identifier <doi:...>")
+
+
+@command(name="seal")
+def seal_cmd(
+    traj: str = typer.Argument(None, help="Trajectory."),
+    message: str = typer.Option(None, "-m", "--message", help="The content to seal."),
+    file: Path = typer.Option(None, "--file", help="Read the content from a file."),
+    anchor: str = typer.Option(
+        None, "--anchor", help="How the time was anchored, if you anchored it."
+    ),
+) -> None:
+    """Register that you held something at a time, without disclosing what.
+
+    Purpose (for you): to start recording on the first day of a piece of work
+    you are not ready to show anyone, instead of the alternative, which is
+    silence.
+
+    It records that you held content with this identifier at this time. It does
+    not establish priority: priority is a community's recognition of a claim,
+    and no tool manufactures that. And a sealed state generates nothing -- no
+    objection, no connection, no encounter -- because nobody can see it.
+    """
+    repo = _repo()
+    traj_id, prior = _resolve_prior(repo, traj, None)
+    text = _message(message, file, "seal")
+
+    content = canonical.normalise_content(text)
+    state_id = canonical.state_id(content)
+    sealed = repo.grrp_dir / "sealed"
+    sealed.mkdir(parents=True, exist_ok=True)
+    (sealed / f"{state_id.split(':')[-1]}.md").write_text(content, encoding="utf-8")
+
+    record = store.new_transition(
+        trajectory=traj_id,
+        act="claim",
+        performer=repo.party(),
+        parents=_parents_for(repo, traj_id, prior),
+        prior_state=prior,
+        posterior_state=state_id,
+        target="hypothesis",
+        trigger="self",
+        disposition="accepted",
+    )
+    _record(repo, traj_id, record, "sealed  ")
+    _echo(f"  content is at .grrp/sealed/, which is never committed and never exported.")
+    _echo(f"  open it when you choose: grrp openseal {canonical.short(state_id)}")
+    _echo("")
+    if anchor:
+        _echo(f"  time anchored by: {anchor}")
+    else:
+        _echo("  The time here is your own assertion. It is evidence to a party who does")
+        _echo("  not trust you only if it is anchored in a medium you do not control --")
+        _echo("  publish the identifier somewhere public, then record it with --anchor.")
+
+
+@command(name="openseal")
+def openseal_cmd(
+    state: str = typer.Argument(..., help="The sealed state to open."),
+    traj: str = TRAJ_OPTION,
+) -> None:
+    """Disclose content you sealed earlier, so anyone can check it.
+
+    Purpose (for you): to show, when you are ready, that what you are saying
+    now is what you held then.
+
+    Any party can verify from the record alone that the content yields the
+    identifier registered earlier. It proves possession at a time, and nothing
+    about understanding, and nothing against a party who arrived at the same
+    place independently.
+    """
+    repo = _repo()
+    traj_id = repo.resolve_trajectory(traj) if traj else None
+    traj_id, state_id = repo.resolve_state(traj_id, state)
+
+    source = repo.grrp_dir / "sealed" / f"{state_id.split(':')[-1]}.md"
+    if not source.is_file():
+        raise errors.GrrpError(f"nothing sealed under {canonical.short(state_id)}")
+
+    content = source.read_text(encoding="utf-8")
+    if canonical.state_id(content) != state_id:
+        raise errors.GrrpError(
+            "the sealed content does not yield the registered identifier. "
+            "Recording the failure rather than removing either record."
+        )
+
+    target = repo.state_path(traj_id, state_id)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(content, encoding="utf-8")
+    source.unlink()
+
+    _echo(f"opened   {canonical.short(state_id)}")
+    _echo("  it yields the identifier registered earlier, and anyone holding both can check.")
+    _commit(repo, [target], f"open seal {canonical.short(state_id)}")
+
+
+@command(name="custody")
+def custody_cmd(
+    action: str = typer.Argument("show", help="show, add, or succession."),
+    value: str = typer.Argument(None, help="A party holding a copy, or the arrangement."),
+) -> None:
+    """Record who else holds a copy, and what happens if you stop.
+
+    Purpose (for you): so that the record survives one disk, one institution
+    and one person, and so that anyone relying on it knows in advance whose
+    commitment they are relying on.
+
+    A right to obtain a record from a party who has ceased to exist is a right
+    without an object.
+    """
+    repo = _repo()
+    profile = repo.profile()
+
+    if action == "show":
+        holders = profile.get("custody") or []
+        _echo("custody")
+        for holder in holders or ["(nobody but you)"]:
+            _echo(f"  {holder}")
+        _echo("")
+        _echo(f"succession  {profile.get('succession') or '(not published)'}")
+        if len(holders) < 2:
+            _echo("")
+            _echo("  A record held by one party does not survive that party. At the group")
+            _echo("  tier and above it should be held by at least two who do not share an")
+            _echo("  operator: grrp custody add <who>")
+        return
+
+    if action == "add":
+        if not value:
+            raise errors.GrrpError("grrp custody add <who holds a copy>")
+        profile["custody"] = [*(profile.get("custody") or []), value]
+        store.write_yaml(repo.profile_path, profile)
+        _echo(f"custody  {value}")
+    elif action == "succession":
+        if not value:
+            raise errors.GrrpError("grrp custody succession \"<what becomes of the records>\"")
+        profile["succession"] = value
+        store.write_yaml(repo.profile_path, profile)
+        _echo("succession arrangement published in the profile.")
+        _echo("  Durability must not be claimed without one.")
+    else:
+        raise errors.GrrpError("say: grrp custody show | add <who> | succession \"<what>\"")
+    _commit(repo, [repo.profile_path], f"custody {action}")
 
 
 # --------------------------------------------------------------------------- #

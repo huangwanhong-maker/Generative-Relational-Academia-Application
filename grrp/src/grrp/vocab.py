@@ -197,6 +197,7 @@ OPERATIONS = (
     "fork_declared",
     "attribution_contested",
     "binding_recorded",
+    "deposit_recorded",
 )
 
 

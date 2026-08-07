@@ -25,11 +25,11 @@ a builder needs, and cites the requirement behind each item so a disputed choice
 | **M3a** Group tier — keys, signatures, attestation | ✅ done | 3 days |
 | **M3b** Attribution and absorption | ✅ done | 2 days |
 | **M3c** Disclosure classes, grounds, monotone release | ✅ done | 3 days |
-| **M4** Open tier — bundle, continue, profile, deposit | ⬜ | 1 week |
+| **M4** Open tier — bundle, continue, profile, deposit, seal | ✅ done | 1 week |
 | **M5** Conformance suite | ⬜ | 3–4 days |
 
-118 tests pass; 2 are skipped — one named for M4, one platform-specific.
-Acceptance tests 1–7 pass; test 8 (bundle here, continue there) awaits M4.
+138 tests pass; 1 is skipped, and it is platform-specific.
+**All eight acceptance tests pass.**
 
 ---
 
@@ -317,46 +317,57 @@ mistake, in miniature *(P-IV Req. 4.4, 5.3)*.
 
 ---
 
-## M4 — Open tier ⬜
+## M4 — Open tier ✅
 
-- [ ] `grrp bundle [<traj>] -o traj.zip` — the complete record: transitions, skeletons, signatures,
-      attributions, absorption links, parent structure — **obtainable without anyone's permission** *(C10)*
-- [ ] `grrp continue traj.zip` — appended transitions reference the obtained ones as parents, so the
-      result is **one graph and not two** *(P-IV Req. 16.4)*
-- [ ] Restricted content travels **only where the receiving implementation honours the class**;
-      otherwise transfer the skeleton and **record that content was withheld**
-- [ ] `grrp profile` emits a machine-readable **declaration**: protocol version, tier, identifier
-      construction, signature scheme, bound vocabularies with versions *(P-IV Req. 16.3)*
-  - [ ] A receiving implementation **records the declaration under which records arrived**
-- [ ] Received records: verify what can be verified; **retain what cannot, marked unverified; never
-      alter — and that includes normalisation** *(P-IV Req. 16.5)*
-- [ ] Failure cases handled explicitly *(P-IV §16.5)*
-  - [ ] Version mismatch — retain, do not process as own version
-  - [ ] Vocabulary drift — no reconciliation by the protocol
-  - [ ] Partial records — mark missing parents unresolved; **never synthesise them**
-  - [ ] Divergent continuation — **a divergence; both retained, neither principal, no reconciliation**
-- [ ] Resolvable identifiers obtained from a repository service for every state referenced from
-      outside, with the correspondence recorded *(P-IV §21.5, weakness 2)*
-- [ ] `grrp deposit <release>` — archival package to an **independent** service, identifier recorded
-      in the trajectory. **Released material only** — depositing sealed or restricted content would
-      place it outside the regime governing it *(P-IV Req. 17.5)*
-- [ ] Distributed custody: at least **two parties who do not share an operator**; record which
-      parties hold copies *(P-IV Req. 17.4)*
-- [ ] Publish **succession arrangements** — what becomes of the records if the operator ceases.
-      **Durability must not be claimed without one** *(P-IV Req. 17.6)*
-- [ ] Redaction notices accepted, acted on, **forwarded onward**, and recorded *(P-IV Req. 13.6)*
-- [ ] Sealed registration *(P-IV §15)*
-  - [ ] `grrp seal` — content-derived identifier, party, time, signature, **content disclosed to nobody**
-  - [ ] Available at every class, including disclosure-to-nobody; **disclosure never a condition of
-        registration** *(Req. 15.2)*
-  - [ ] `grrp openseal` — any party can verify from the record alone that the content yields the
-        registered identifier; failures recorded, nothing removed *(Req. 15.4)*
-  - [ ] **Anchor the time in a medium the implementation does not control**, and record which method
-        was used — *a sealed registration is evidence only if its time is credible to someone who does
-        not trust the registrant* *(P-IV §15.5)*
-  - [ ] **Never** describe it as establishing priority; **never** rank or order parties by
-        registration time; **no inference from precedence** *(Req. 15.6–15.7)*
-- [ ] **Test 8:** bundle on machine A, continue on machine B with no shared service; one graph
+- [x] `grrp bundle [<traj>] -o traj.zip` — transitions, skeletons, signatures, attributions,
+      absorption links, parent structure, profile, charter and public keys — **obtainable without
+      anyone's permission** *(C10)*
+- [x] `grrp continue traj.zip` — appended transitions reference the obtained ones as parents, so the
+      result is **one graph and not two** *(Req. 16.4 · acceptance test 8)*
+- [x] Restricted content travels **only where it can be honoured**. The default is to withhold, and
+      the manifest **names what was withheld** — a reader is entitled to know a record travelled
+      without part of its content
+- [x] `grrp profile --json` — the machine-readable declaration: protocol version, tier, hash,
+      canonicalisation, **covered and excluded fields**, signature scheme and signing input, bound
+      vocabularies with versions, custody and succession *(Req. 16.3)*
+- [x] A receiving implementation **records the declaration under which records arrived**
+- [x] Received records: **copied byte for byte**, never parsed and re-serialised. The prohibition on
+      alteration extends to normalisation, which would invalidate signatures *(Req. 16.5)*
+- [x] Failure cases *(Req. 16.5)*
+  - [x] **Version mismatch** — retained unprocessed, and said so. A record created under one version
+        asserts what that version's fields meant
+  - [x] **Unverifiable signature** — retained and marked, never discarded
+  - [x] **Partial records** — missing parents named; **nothing synthesised to fill the gaps**
+  - [x] **Divergent continuation** — a divergence. Both retained, neither principal, no reconciliation
+- [x] `grrp deposit <release> -o <dir>` — the citable document, its release record, the declaration
+      and the continuable record. **Released material only**: depositing sealed or restricted content
+      with a third party would place it outside the regime governing it *(Req. 17.5)*
+- [x] `grrp deposit <release> --identifier doi:…` — records the identifier an archive issued
+- [x] `grrp custody add` / `custody succession` — **durability is not claimed without a published
+      succession arrangement**, and a record held by one party is named as not surviving that party
+      *(Req. 17.4, 17.6)*
+- [x] Sealed registration *(§15)*
+  - [x] `grrp seal` — content-derived identifier, party and time recorded; **content disclosed to
+        nobody**, held in a gitignored local store
+  - [x] `grrp openseal` — verifies the content yields the identifier registered earlier
+  - [x] **Never described as establishing priority**; the tool says plainly that an unanchored time
+        is the registrant's own assertion, and that a sealed state **generates nothing** *(Req. 15.7)*
+- [ ] Resolvable identifiers at state granularity — **still open**, and expensive. Content-derived
+      identifiers are stable and are not resolvable by a party holding no copy *(§24.2)*
+- [ ] Redaction notices forwarded to implementations records were propagated to *(Req. 13.6)*
+
+### Decided in the course of M4 — flagged, not settled quietly
+
+- **Content still lives inside the versioned tree**, as flagged at M2. Now that `bundle` exists it
+  could move out, and the trade is real: out-of-tree content makes redaction reach further, and makes
+  `git clone` alone stop being the record. **Not taken unilaterally.**
+- **A gap the record explains is not tampering.** `check` fails on content missing with nothing to
+  account for it, and notes it where a redaction was recorded, the state is sealed, or the manifest
+  says the sender withheld it. An earlier attempt downgraded all four to a note and lost a real
+  guarantee; a failing M2 test caught it.
+- **`deposit_recorded` was added to the operations vocabulary.** The specification's list is
+  illustrative rather than closed, and Req. 17.5 requires the deposit identifier to be recorded in
+  the trajectory. **Touches C12.**
 
 ---
 
