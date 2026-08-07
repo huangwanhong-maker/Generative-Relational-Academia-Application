@@ -323,17 +323,20 @@ cd grrp && pip install -e . && python -m pytest
 
 grrp init
 grrp new "Is trust a property obtaining between individuals?"
-grrp claim -m "Trust obtains between individuals."
-grrp challenge <state> -m "This omits institutional power."
-grrp transform <state> -m "Trust is a process shaped by asymmetry of power." --answering <challenge>
+grrp claim     -m "Trust obtains between individuals."
+grrp challenge -m "This omits institutional power."      # defaults to the live position
+grrp transform -m "Trust is shaped by asymmetry of power." --answering <challenge>
+grrp decide --abandon      # omit -m and your editor opens, asking for the reason
+
+grrp show        # where this stands: question, live positions, what is still open
 grrp open        # what you still owe an answer to — and the entry path for strangers
-grrp release <state> && grrp export <release> -o paper.md
+grrp release && grrp export <release> -o paper.md
 ```
 
 | Milestone | |
 |---|---|
 | **M0** skeleton, canonical hashing, `init` | **built** |
-| **M1** personal tier — five acts, append-only log, derived views, `open`, `export` | **built — this is the ship point** |
+| **M1** personal tier — five acts, append-only log, derived views, `open`, `show`, `export` | **built — this is the ship point** |
 | **M2** hash chaining, `check` over the whole chain, separable content, `redact` | not built |
 | **M3** group tier — keypairs, signatures, `register` with performer ≠ registrar, CRediT, absorption, disclosure grounds | not built |
 | **M4** open tier — `bundle`/`continue`, profile declaration, deposit, redaction notices | not built |
@@ -387,8 +390,15 @@ Correspondence: huangwanhong@serendip.ngo
 
 ## Licence
 
-Documentation and conceptual materials: **Creative Commons Attribution–NonCommercial 4.0 (CC BY-NC 4.0)**.
-See [LICENSE.md](LICENSE.md). © 2026 Wanhong Huang / Serendip Commons Society.
+**MIT.** See [LICENSE.md](LICENSE.md). © 2026 Wanhong Huang and Serendip Commons Society.
 
-*A licence for the `grrp` implementation, and the licence under which the specification is forkable
-(Paper IV Req. 19.4) and a record is continuable elsewhere (Paper I Req. 16.2), are still to be settled.*
+The choice is not incidental. Two requirements of the design depend on it, and MIT discharges both:
+the specification must be licensed so that **any party may fork it** — otherwise custodianship is a
+position rather than a service (Paper IV Req. 19.4); and a record must be **licensed so that
+continuation elsewhere is permitted**, which is one of the five joint properties of portability, and
+portability is the only bound this design places on the authority of any position within it
+(Paper I Req. 16.2).
+
+> The four PDFs in [papers/](papers/) each carry their own **CC BY-NC 4.0** notice inside the document
+> and remain under it until those notices are revised. Where this repository's licence and a document's
+> own notice differ, the document's notice governs that document.

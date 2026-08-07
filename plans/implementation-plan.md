@@ -19,13 +19,14 @@ a builder needs, and cites the requirement behind each item so a disputed choice
 |---|---|---|
 | **M0** Skeleton — layout, canonical hashing, `init` | ✅ done | 1–2 days |
 | **M1** Personal tier — **ship here** | ✅ done | 1 week |
+| **M1** usability pass — editor prompts, defaulted references, `show` | ✅ done | 1 day |
 | **Gate** Use it on real work for two weeks | ⬜ **not started — blocks M2** | 2 weeks |
 | **M2** Integrity — chain verification, separability, redaction | ⬜ | 3–4 days |
 | **M3** Group tier — keys, signatures, attestation, disclosure grounds | ⬜ | 1 week |
 | **M4** Open tier — bundle, continue, profile, deposit | ⬜ | 1 week |
 | **M5** Conformance suite | ⬜ | 3–4 days |
 
-36 tests pass; 3 are present and skipped, named for M2, M3 and M4.
+49 tests pass; 4 are skipped — three named for M2, M3 and M4, one platform-specific.
 
 ---
 
@@ -101,6 +102,31 @@ no evidential weight**, and the two must never be confused. *(R15 · P-II Req. 1
 - [x] A challenge does not supersede the state it challenges
 - [x] Divergence preserves both directions and designates neither
 - [x] Every command's `--help` contains `Purpose (for you):` *(C1)*
+
+---
+
+### M1 usability pass ✅
+
+Not features — the difference between a tool that gets used on a Tuesday and one that does not. The
+byproduct principle is a claim about *cost to the participant*, so friction on the acts is a
+conformance concern and not a matter of polish *(C1 · P-II Claim 11.1)*.
+
+- [x] **Omitting `-m` opens `$GRRP_EDITOR` / `$EDITOR`**, with a prompt for the act being performed.
+      Writing a paragraph inside shell quotes is friction, and it falls hardest on the **decision**
+      act — the one whose purpose for the performer is weakest and on which reuse depends entirely
+- [x] The prompt sits below a cut line and is never recorded; an empty message records nothing
+- [x] A 30-line editor launcher rather than a dependency — `typer` 0.27 no longer bundles `click`,
+      and every command still accepts `-m` and `--file`, so an environment with no editor loses nothing
+- [x] **`challenge`, `transform`, `decide`, `release` default to the live position** — no copying a
+      hash out of one command's output into the next. Still references a specific identified prior
+      state *(C4)*
+- [x] A divergence **refuses and lists both positions with their text**, rather than picking —
+      nothing in the design gives a basis for picking *(P-IV Req. 10.3)*
+- [x] **`grrp show`** — one screen per trajectory: question, live positions, what is unanswered, what
+      has been released. Derived; per-trajectory; nothing compared across trajectories or people; no
+      number summarising how it is going *(C6)*
+- [x] Refusals reach the user as guidance on stderr, naming the constraint and what to do instead
+- [x] `new` points at the next act
 
 ---
 
@@ -332,10 +358,12 @@ is optional, additive, and clearly marked as outside conformance.
 
 ## Open decisions — needed from the maintainer ⬜
 
-- [ ] **Licence.** `LICENSE.md` is CC BY-NC, right for documentation and **not a software licence**.
-      Two separate needs: a licence for `grrp`, and one under which **the specification is forkable**
-      *(P-IV Req. 19.4)* and **a record is continuable elsewhere** *(P-I Req. 16.2, property 4)*.
-      CC BY-**NC** does not obviously permit continuation by a commercially funded lab.
+- [x] **Licence — settled: MIT.** Discharges both dependent requirements: **the specification is
+      forkable** *(P-IV Req. 19.4)*, so custodianship is a service rather than a position; and **a
+      record is licensed to permit continuation elsewhere** *(P-I Req. 16.2, property 4)*, which is
+      the property that distinguishes portability from export.
+  - [ ] The four PDFs still carry an embedded **CC BY-NC 4.0** notice and remain under it until their
+        author revises them. Regenerate the licence block if MIT is intended there too.
 - [ ] **Per-record secret before hashing redactable content** *(M2 above)* — decided in advance or not
       at all, because it changes identifier construction.
 - [ ] **Custodial separation.** Serendip Commons Society would maintain the specification and operate

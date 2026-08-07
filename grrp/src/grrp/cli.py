@@ -12,12 +12,24 @@ The marker "Purpose (for you):" is checked by the test suite.
 
 from __future__ import annotations
 
+import functools
 import sys
 from pathlib import Path
 
 import typer
 
-from . import canonical, check as check_module, errors, export, gitutil, keys, store, views, vocab
+from . import (
+    canonical,
+    check as check_module,
+    editor,
+    errors,
+    export,
+    gitutil,
+    keys,
+    store,
+    views,
+    vocab,
+)
 from .store import Repo
 
 app = typer.Typer(
@@ -32,6 +44,28 @@ app = typer.Typer(
 TRAJ_OPTION = typer.Option(None, "--traj", "-t", help="Trajectory, if you have more than one.")
 
 
+def command(*args, **kwargs):
+    """Register a command whose refusals reach the user as guidance.
+
+    A protocol that refuses things has to say which rule it is applying and
+    what to do instead, or the refusal reads as a bug.  Errors go to stderr so
+    that ``grrp export ... > paper.md`` does not put them in the paper.
+    """
+
+    def decorator(function):
+        @functools.wraps(function)
+        def wrapper(*positional, **keyword):
+            try:
+                return function(*positional, **keyword)
+            except errors.GrrpError as error:
+                typer.secho(str(error), err=True, fg=typer.colors.RED)
+                raise typer.Exit(code=1) from None
+
+        return app.command(*args, **kwargs)(wrapper)
+
+    return decorator
+
+
 def _echo(message: str = "") -> None:
     typer.echo(message)
 
@@ -40,12 +74,48 @@ def _repo() -> Repo:
     return Repo.discover()
 
 
-def _message(message: str | None, file: Path | None) -> str:
+CUT = "--- everything below this line is ignored ---"
+
+#: What the editor asks for, per act.  The decision act gets the longest prompt
+#: because it is the expensive one: articulating why a direction was set aside
+#: is work whose benefit accrues to someone else later, and it is the act the
+#: reuse of abandoned work depends on entirely.
+PROMPTS = {
+    "claim": "What position are you taking?",
+    "challenge": "What is the objection? Say what it is about the state that does not hold.",
+    "transform": "What does the state become?",
+    "decide": (
+        "Why? If you are setting a direction aside, say what stopped it -- the\n"
+        "assumption that failed, the obstruction you met. A direction recorded as\n"
+        "abandoned without a reason cannot be revisited by anyone, including you."
+    ),
+    "new": "What are you actually trying to find out?",
+}
+
+
+def _message(message: str | None, file: Path | None, act: str) -> str:
+    """The text of a state: from the command line, a file, or your editor.
+
+    Writing a paragraph inside shell quotes is friction, and it falls hardest
+    on the act that matters most.  So an omitted message opens $EDITOR rather
+    than being an error.
+    """
     if file is not None:
         return file.read_text(encoding="utf-8")
     if message:
         return message
-    raise errors.GrrpError("say what changed: pass -m \"<text>\" or --file <path>")
+
+    template = f"\n\n{CUT}\n{PROMPTS.get(act, 'What changed?')}\n"
+    edited = editor.edit(template)
+    if edited is None:
+        raise errors.GrrpError(
+            "nothing recorded: no editor is configured, or it exited with an error.\n"
+            "Set $GRRP_EDITOR or $EDITOR, or pass -m \"<text>\" or --file <path>."
+        )
+    text = edited.split(CUT)[0].strip()
+    if not text:
+        raise errors.GrrpError("nothing recorded: the message was empty.")
+    return text
 
 
 def _commit(repo: Repo, paths: list[Path], summary: str) -> None:
@@ -76,7 +146,7 @@ def _record(
 # --------------------------------------------------------------------------- #
 
 
-@app.command()
+@command()
 def init(
     name: str = typer.Option("self", help="Local name for your keypair."),
 ) -> None:
@@ -132,7 +202,7 @@ def init(
     _commit(repo, [repo.profile_path, repo.grrp_dir / ".gitignore"], "init")
 
 
-@app.command()
+@command()
 def profile() -> None:
     """Print what another implementation would need to read your records.
 
@@ -154,7 +224,7 @@ def profile() -> None:
 # --------------------------------------------------------------------------- #
 
 
-@app.command()
+@command()
 def new(
     question: str = typer.Argument(..., help="The question you are opening."),
     title: str = typer.Option(None, help="Short title. Defaults to the question."),
@@ -205,10 +275,12 @@ def new(
     path = repo.append_transition(traj_id, record)
     _echo(f"opened   {traj_id}")
     _echo(f"  question {canonical.short(state_id)}")
+    _echo("")
+    _echo('next: grrp claim -m "<what you currently think>"   (omit -m to use your editor)')
     _commit(repo, [trajectory_path, state_path, path], f"open {traj_id}")
 
 
-@app.command()
+@command()
 def claim(
     ref: str = typer.Argument(None, help="Trajectory, or the state you are answering."),
     message: str = typer.Option(None, "-m", "--message", help="The position you are taking."),
@@ -223,8 +295,8 @@ def claim(
     shown to have been abandoned for a reason.
     """
     repo = _repo()
-    text = _message(message, file)
     traj_id, prior = _resolve_prior(repo, ref)
+    text = _message(message, file, "claim")
     state_id, _ = repo.write_state(traj_id, text)
     record = store.new_transition(
         trajectory=traj_id,
@@ -240,9 +312,9 @@ def claim(
     _record(repo, traj_id, record, "claim   ")
 
 
-@app.command()
+@command()
 def challenge(
-    state: str = typer.Argument(..., help="The state you are objecting to."),
+    state: str = typer.Argument(None, help="The state you are objecting to. Defaults to the live position."),
     message: str = typer.Option(None, "-m", "--message", help="The objection."),
     file: Path = typer.Option(None, "--file", help="Read the objection from a file."),
     traj: str = TRAJ_OPTION,
@@ -262,13 +334,12 @@ def challenge(
     change is a separate transformation, and the two are linked.
     """
     repo = _repo()
-    text = _message(message, file)
+    text = _message(message, file, "challenge")
     if disposition not in vocab.DISPOSITIONS:
         raise errors.GrrpError(
             f"disposition must be one of {', '.join(vocab.DISPOSITIONS)}"
         )
-    traj_id = repo.resolve_trajectory(traj) if traj else None
-    traj_id, prior = repo.resolve_state(traj_id, state)
+    traj_id, prior = _resolve_prior(repo, state, traj)
     state_id, _ = repo.write_state(traj_id, text)
     relation, _bound = vocab.resolve_relation("disagrees")
     record = store.new_transition(
@@ -288,9 +359,9 @@ def challenge(
         _echo("  standing - it will appear in 'grrp open' until something answers it")
 
 
-@app.command()
+@command()
 def transform(
-    state: str = typer.Argument(..., help="The state you are changing."),
+    state: str = typer.Argument(None, help="The state you are changing. Defaults to the live position."),
     message: str = typer.Option(None, "-m", "--message", help="What it becomes."),
     file: Path = typer.Option(None, "--file", help="Read the new state from a file."),
     relation: str = typer.Option(
@@ -313,12 +384,11 @@ def transform(
     stops standing, without anything being edited: the graph records it.
     """
     repo = _repo()
-    text = _message(message, file)
+    text = _message(message, file, "transform")
     relation_value, bound = vocab.resolve_relation(relation)
     if not bound:
         _echo(f"  note: {relation_value} is a local value and needs a charter to define it")
-    traj_id = repo.resolve_trajectory(traj) if traj else None
-    traj_id, prior = repo.resolve_state(traj_id, state)
+    traj_id, prior = _resolve_prior(repo, state, traj)
     state_id, _ = repo.write_state(traj_id, text)
 
     parents = _parents_for(repo, traj_id, prior)
@@ -342,9 +412,9 @@ def transform(
     _record(repo, traj_id, record, "transform")
 
 
-@app.command()
+@command()
 def decide(
-    state: str = typer.Argument(..., help="The state or direction you are deciding about."),
+    state: str = typer.Argument(None, help="The state you are deciding about. Defaults to the live position."),
     message: str = typer.Option(None, "-m", "--message", help="The reason."),
     file: Path = typer.Option(None, "--file", help="Read the reason from a file."),
     abandon: bool = typer.Option(
@@ -366,9 +436,8 @@ def decide(
     anyone, including you.
     """
     repo = _repo()
-    text = _message(message, file)
-    traj_id = repo.resolve_trajectory(traj) if traj else None
-    traj_id, prior = repo.resolve_state(traj_id, state)
+    text = _message(message, file, "decide")
+    traj_id, prior = _resolve_prior(repo, state, traj)
     state_id, _ = repo.write_state(traj_id, text)
 
     parents = _parents_for(repo, traj_id, prior)
@@ -395,9 +464,9 @@ def decide(
         _echo(f"  retired  {canonical.short(prior)} - the record of why it was tried stays")
 
 
-@app.command()
+@command()
 def release(
-    state: str = typer.Argument(..., help="The state you are publishing."),
+    state: str = typer.Argument(None, help="The state you are publishing. Defaults to the live position."),
     traj: str = TRAJ_OPTION,
 ) -> None:
     """Publish a state, enumerating the objections standing against it.
@@ -410,8 +479,7 @@ def release(
     of anything. You cannot make a release conditional on resolving them.
     """
     repo = _repo()
-    traj_id = repo.resolve_trajectory(traj) if traj else None
-    traj_id, state_id = repo.resolve_state(traj_id, state)
+    traj_id, state_id = _resolve_prior(repo, state, traj)
 
     standing = views.standing_objections(repo, traj_id, state_id)
     record = store.new_transition(
@@ -463,7 +531,72 @@ def release(
 # --------------------------------------------------------------------------- #
 
 
-@app.command(name="log")
+@command(name="show")
+def show_cmd(
+    traj: str = typer.Argument(None, help="Trajectory. Defaults to all of them."),
+) -> None:
+    """Show where a trajectory stands: question, live positions, what is open.
+
+    Purpose (for you): the one screen you want on a Monday morning, or before a
+    supervision meeting -- what you are asking, where you got to, and what you
+    still owe an answer to.
+
+    Everything here is derived from the log and concerns one trajectory at a
+    time. Nothing is compared across trajectories or across people, and there is
+    no number summarising how any of it is going.
+    """
+    repo = _repo()
+    traj_ids = [repo.resolve_trajectory(traj)] if traj else repo.trajectory_ids()
+    if not traj_ids:
+        _echo("nothing recorded yet.")
+        _echo('start with: grrp new "the question you are actually working on"')
+        return
+
+    for traj_id in traj_ids:
+        trajectory = repo.trajectory(traj_id)
+        _echo(f"{trajectory.get('title')}   ({traj_id})")
+        _echo(f"  question   {trajectory.get('question')}")
+        _echo()
+
+        live = views.current_states(repo, traj_id)
+        _echo("  live position" + ("s" if len(live) > 1 else ""))
+        if not live:
+            _echo("    (none yet - take one with: grrp claim -m \"...\")")
+        for state_id in live:
+            _echo(f"    {canonical.short(state_id)}  {_headline(repo, traj_id, state_id)}")
+        if len(live) > 1:
+            _echo("    these diverged. Neither is the canonical one.")
+        _echo()
+
+        items = views.open_items(repo, traj_id)
+        _echo("  unanswered")
+        if not items:
+            _echo("    (nothing)")
+        for item in items:
+            record = item.transition
+            target = item.transition.get("posterior_state") or ""
+            _echo(
+                f"    {canonical.short(record['id'])}  {record.get('act'):<11} "
+                f"{_headline(repo, traj_id, target, width=56)}"
+            )
+        _echo()
+
+        releases = repo.releases(traj_id)
+        if releases:
+            _echo("  released")
+            for release in releases:
+                _echo(
+                    f"    {canonical.short(release['id'])}  {release.get('time', '')[:10]}  "
+                    f"{_headline(repo, traj_id, release['state'], width=52)}"
+                )
+            _echo()
+
+        if not views.has_attestation(repo, traj_id):
+            _echo("  unattested throughout - useful to you, evidence to nobody")
+        _echo()
+
+
+@command(name="log")
 def log_cmd(
     traj: str = typer.Argument(None, help="Trajectory. Defaults to all of them."),
 ) -> None:
@@ -493,7 +626,7 @@ def log_cmd(
     _echo("!  registered by the party who performed it - unattested")
 
 
-@app.command(name="state")
+@command(name="state")
 def state_cmd(
     traj: str = typer.Argument(None, help="Trajectory."),
     full: bool = typer.Option(False, "--full", help="Print the whole content."),
@@ -529,7 +662,7 @@ def state_cmd(
         _echo()
 
 
-@app.command(name="open")
+@command(name="open")
 def open_cmd(
     traj: str = typer.Argument(None, help="Trajectory. Defaults to all of them."),
 ) -> None:
@@ -564,7 +697,7 @@ def open_cmd(
         _echo()
 
 
-@app.command(name="export")
+@command(name="export")
 def export_cmd(
     release_ref: str = typer.Argument(..., help="The release to emit."),
     out: Path = typer.Option(None, "-o", "--out", help="Write to a file."),
@@ -588,7 +721,7 @@ def export_cmd(
         _echo(document)
 
 
-@app.command(name="check")
+@command(name="check")
 def check_cmd() -> None:
     """Verify the record, and this implementation against the protocol.
 
@@ -615,26 +748,33 @@ def check_cmd() -> None:
 # --------------------------------------------------------------------------- #
 
 
-def _resolve_prior(repo: Repo, ref: str | None) -> tuple[str, str]:
-    """Find the state a new claim attaches to.
+def _resolve_prior(repo: Repo, ref: str | None, traj: str | None = None) -> tuple[str, str]:
+    """Find the state an act attaches to.
 
-    A transition references a specific identified prior state. A record
-    attached to a project or a repository as a whole is not a transition, so
-    this refuses rather than inventing an anchor.
+    Accepts a state identifier or prefix, a trajectory, or nothing at all. With
+    nothing, it uses the live position, which is what you almost always mean and
+    saves copying a hash out of another command's output.
+
+    A transition still references a specific identified prior state either way.
+    Where the answer is not unique -- a divergence -- this refuses and lists the
+    candidates rather than picking one, because nothing in the design gives it a
+    basis for picking.
     """
+    scope = repo.resolve_trajectory(traj) if traj else None
+
     if ref:
         try:
             traj_id = repo.resolve_trajectory(ref)
         except (errors.UnknownReference, errors.AmbiguousReference):
-            return repo.resolve_state(None, ref)
+            return repo.resolve_state(scope, ref)
     else:
-        traj_id = repo.resolve_trajectory(None)
+        traj_id = scope or repo.resolve_trajectory(None)
 
     live = views.current_states(repo, traj_id)
     if len(live) == 1:
         return traj_id, live[0]
     if not live:
-        # No position taken yet: the first claim attaches to the question.
+        # No position taken yet: the act attaches to the question.
         opening = views.opening_state(repo, traj_id)
         if opening:
             return traj_id, opening
@@ -643,9 +783,20 @@ def _resolve_prior(repo: Repo, ref: str | None) -> tuple[str, str]:
             f"{traj_id} has no state to attach to. Name a state explicitly.",
         )
     raise errors.AmbiguousReference(
-        f"{traj_id} has several live states; name the one you are answering: "
-        + ", ".join(canonical.short(s) for s in live)
+        f"{traj_id} has several live positions and none is the canonical one. "
+        "Name the one you mean:\n"
+        + "\n".join(
+            f"  {canonical.short(s)}  {_headline(repo, traj_id, s)}" for s in live
+        )
     )
+
+
+def _headline(repo: Repo, traj_id: str, state_id: str, width: int = 72) -> str:
+    content = repo.read_state(traj_id, state_id)
+    if not content:
+        return "(content not available)"
+    first = content.strip().splitlines()[0]
+    return first if len(first) <= width else first[: width - 1] + "…"
 
 
 def _parents_for(repo: Repo, traj_id: str, state_id: str | None) -> list[str]:

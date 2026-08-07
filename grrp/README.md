@@ -35,18 +35,28 @@ pipx install -e .          # or: python -m pip install -e .
 
 grrp init
 grrp new "Is trust a property obtaining between individuals?"
-grrp claim   -m "Trust obtains between individuals."
-grrp challenge <state> -m "This omits institutional power."
-grrp transform <state> -m "Trust is a process shaped by asymmetry of power." \
-                       --relation modifies --answering <challenge>
-grrp decide  <state> --abandon -m "The independence assumption does not hold."
+grrp claim      -m "Trust obtains between individuals."
+grrp challenge  -m "This omits institutional power."
+grrp transform  -m "Trust is a process shaped by asymmetry of power." --answering <challenge>
+grrp decide     --abandon        # no -m: opens your editor and asks for the reason
+
+grrp show                  # where this stands: question, live positions, what is open
 grrp open                  # what you still owe an answer to — and the entry path
 grrp state                 # the live positions, derived
 grrp log
-grrp release <state>       # publishes, enumerating objections that still stand
-grrp export  <release>     # the citable document, with its lineage appendix
+grrp release               # publishes, enumerating objections that still stand
+grrp export <release> -o paper.md
 grrp check                 # verify the record, and this tool against the protocol
 ```
+
+**You rarely need to name a state.** `challenge`, `transform`, `decide` and `release` default to the
+live position, which is what you almost always mean, and saves copying a hash out of one command into
+the next. Where two positions are live they refuse and list both with their text — nothing in the
+design gives the tool a basis for picking one.
+
+**Omit `-m` and your editor opens**, with a prompt for the act you are performing. `decide` gets the
+longest prompt, because articulating why a direction was set aside is the expensive act and the one
+everything else depends on. Set `$GRRP_EDITOR` if you want a different editor here than in git.
 
 Every command's `--help` states **`Purpose (for you):`** — what the person running it gets. That is
 checked by the test suite, because the reason every comparable system since 1970 went unadopted is
@@ -94,8 +104,13 @@ are stated in one place ([`views.py`](src/grrp/views.py)):
 | produces a state | every act writes a posterior state |
 | **supersedes** its prior | `transformation` only |
 | **retires** its prior | `decision` whose relation is `cito:retracts` (i.e. `--abandon`) |
-| a **live position** | posterior of `question`, `claim` or `transformation`, not superseded and not retired |
+| a **live position** | posterior of `claim` or `transformation`, not superseded and not retired |
 | **answered** | a challenge that a later `transformation` or `decision` names among its parents |
+
+A trajectory's opening **question is a state and not a position**: it is what the work is about, it
+does not stop being so when someone takes a view, and it stays on the open register until something
+answers it. It also anchors the first claim, so that even the first transition references an
+identified prior state rather than the project as a whole.
 
 Objections, decisions and releases produce states too, but those are annotations on a position rather
 than positions themselves, so they are not candidates for "the current state". Nothing is edited to
@@ -144,6 +159,8 @@ The acceptance tests are written against the constraints, not the features:
 | 3 | every command's `--help` names the purpose it serves for the person running it |
 | 4 | editing anything under `transitions/` is detected by `grrp check` |
 | 5 | a disclosure change does not invalidate verification |
+| — | acts default to the live position, and refuse rather than guess at a divergence |
+| — | omitting `-m` opens an editor; the prompt below the cut is never recorded |
 | 6 | *(M2)* after redaction the chain still verifies and the redaction is recorded — **skipped** |
 | 7 | *(M3)* `register` refuses when performer and registrar are identical — **skipped** |
 | 8 | *(M4)* `bundle` here, `continue` there, one graph and not two — **skipped** |
@@ -154,3 +171,12 @@ Skipped tests are present and named, so what is not yet built is visible rather 
 
 Use it on real work for two weeks before M2. Record what was annoying — those notes are the input to
 everything after this, and they belong in a trajectory.
+
+## Licence
+
+**MIT** — see [LICENSE.md](../LICENSE.md).
+
+Not incidental: a record must be licensed so that **continuation elsewhere is permitted** (Paper I
+Req. 16.2, property 4), and the specification must be licensed so that **any party may fork it**
+(Paper IV Req. 19.4). Portability is the only bound this design places on the authority of any
+position within it, including the authority of whoever wrote this.
