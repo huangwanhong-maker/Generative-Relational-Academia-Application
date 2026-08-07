@@ -24,11 +24,11 @@ a builder needs, and cites the requirement behind each item so a disputed choice
 | **M2** Integrity — full act vocabulary, chain verification, redaction | ✅ done | 3–4 days |
 | **M3a** Group tier — keys, signatures, attestation | ✅ done | 3 days |
 | **M3b** Attribution and absorption | ✅ done | 2 days |
-| **M3c** Disclosure classes, grounds, monotone release | ⬜ | 3 days |
+| **M3c** Disclosure classes, grounds, monotone release | ✅ done | 3 days |
 | **M4** Open tier — bundle, continue, profile, deposit | ⬜ | 1 week |
 | **M5** Conformance suite | ⬜ | 3–4 days |
 
-93 tests pass; 2 are skipped — one named for M4, one platform-specific.
+118 tests pass; 2 are skipped — one named for M4, one platform-specific.
 Acceptance tests 1–7 pass; test 8 (bundle here, continue there) awaits M4.
 
 ---
@@ -266,44 +266,52 @@ the release was still a proposal, so an exported document went on saying "unatte
 release had been registered. Now derived at export time from the log — the stored-derived-value
 mistake, in miniature *(P-IV Req. 4.4, 5.3)*.
 
-### Disclosure
-- [ ] `grrp disclose <tx> --class <c> --ground <g> [--release-at <date>]`
-- [ ] Classes exist, are **ordered by inclusion**, are enforced, and are **opaque to the protocol** —
-      identity and membership come from a charter *(P-IV Def. 11.1)*
-- [ ] **Four grounds, closed set:** `rivalry` · `hazard` · `vulnerability` · `appropriability`.
-      A community may not declare a new one *(P-III Req. 2.5)*
-- [ ] **Reject a restriction that declares no ground**, and display the ground wherever the
-      restriction is shown *(P-IV Req. 11.3)*
-- [ ] **Surface the residue.** When a ground is declared, show what that ground leaves disclosable —
-      *the only part of the design that gains something without giving something up*
-      *(P-III Req. 2.6 · P-IV Req. 11.4)*
+### Disclosure ✅
+- [x] `grrp disclose <tx> --class <c> --ground <g> [--release-at <date>]`
+- [x] `grrp charter adopt --classes a,b,c` — classes exist, are **ordered by inclusion** (narrowest
+      first), are enforced, and are **opaque to the protocol**. **No model charter and no default
+      set**: a specification supplying one would be a specification of governance *(P-IV §18.5)*.
+      Without a charter there is nothing to disclose at, and the tool says so
+- [x] `grrp charter adopt` again bumps the version; amendments are **prospective only** *(Req. 18.4)*
+- [x] **Four grounds, closed set.** A value outside it is refused, naming the four *(P-III Req. 2.5)*
+- [x] **Reject a restriction that declares no ground**, and display the ground wherever it is shown
+      *(Req. 11.3)*
+- [x] **Surface the residue.** Declaring a ground prints what it leaves disclosable **and the named
+      failure it becomes if misapplied**. `grrp grounds` prints the whole typology
+      *(P-III Req. 2.6 — the only part of the design that gains without giving something up)*
+- [x] **Composition = intersection of residues**, and the tool says declaring more grounds is not
+      free, since each is an assertion a reader may find false *(P-III Req. 7.2)*
+- [x] **Monotone enforcement** *(C7)*
+  - [x] Narrowing is refused, naming C7 and why a withdrawal cannot be effected
+  - [x] No `unpublish`, `unrelease`, `hide`, `conceal` or `restrict` command exists
+  - [x] A schedule **fires without a further act by any party** — derived from the log and the clock,
+        so there is nothing to fire and nothing that can be forgotten *(Req. 12.4)*
+  - [x] A schedule may be **shortened**; **extending or cancelling is refused and the attempt
+        recorded** as an operation, because a charter may in some circumstances allow it and it
+        should be visible that it was made
+  - [x] `--release-at` **only with `vulnerability`** — the only ground with a terminus. Rivalry and
+        appropriability end unobservably from here, and **hazard does not end** *(P-III Claim 7.4)*
+- [x] **Per record**, never per repository or trajectory: records in one trajectory carry different
+      classes *(Req. 11.5)*
+- [x] Charter identifier **and version** recorded on every disclosure *(Req. 18.3)*
+- [x] `grrp show` surfaces what is restricted, on what ground, and when it widens
 
-  | ground | object restricted | residue that must still be disclosed |
-  |---|---|---|
-  | rivalry | access to the resource | **the trajectory in full** |
-  | hazard | the propagable content of a method | existence, questions, decisions, interpretations, non-conveying results |
-  | vulnerability | the timing of exposure | **everything, at the scheduled time** |
-  | appropriability | content whose disclosure destroys excludability | existence, questions, decisions, **negative results** |
+### Decided in the course of M3c — flagged, not settled quietly
 
-- [ ] **Composition = intersection of residues.** Declaring more grounds is not free: each is an
-      assertion that can be found false *(P-III Req. 7.2)*
-- [ ] **Monotone enforcement** *(C7)*
-  - [ ] No operation narrows a class; no `unpublish`
-  - [ ] Restrictive default; **never widen as a side effect of another operation** *(P-IV Req. 12.2)*
-  - [ ] A schedule fires **without a further act by any party**; may be shortened; **an attempt to
-        extend or cancel is refused and recorded as an operation with its ground** *(P-IV Req. 12.4)*
-  - [ ] `--release-at` offered only for **vulnerability** — it is the only ground with a recorded
-        terminus, and hazard has none at all *(P-III Claim 7.4)*
-- [ ] **Per-record**, never per repository or per trajectory. Records within one trajectory carry
-      different classes *(P-IV Req. 11.5)*
-  - [ ] Under the git deployment this means a class change **moves** a record between
-        repositories, and the movement is recorded as an operation *(P-IV §21.5, weakness 1)*
-- [ ] Views computed **over the records that reader may see**; **never disclose a record's existence
-      by omission, ambiguity or a gap in numbering** — *a genuine implementation hazard, easy to
-      introduce accidentally* *(P-IV §11.4, §23.3)*
-- [ ] Charter reference: `charter.yaml` with identifier **and version**; a record carries the version
-      that governed it; amendments are **prospective only** *(P-IV Req. 18.3–18.4)*
-- [ ] Reject a record referencing a charter that does not state its minimum content *(P-IV Req. 18.2)*
+- **An undisclosed record is not a restriction without a ground.** Req. 12.2 fixes a restrictive
+  default and Req. 11.3 demands a ground for anything below the widest class; read together they
+  would demand a ground for every record ever made. The reading taken: a record with no disclosure
+  operation is **not yet published**, which is a different thing from **withheld**. The ground
+  requirement bites when a restriction is imposed. **Touches C7.**
+- **Redaction grounds and grounds of restriction are separate vocabularies**, as flagged at M2 —
+  one concerns removal, the other disclosure. `grrp grounds` prints only the four.
+- **Operations carry `subject` and `payload`** rather than a field per operation type. Both are
+  covered by the identifier, so a declared ground that could be altered afterwards would be no
+  ground at all. Redaction was migrated to the same envelope.
+- **Disclosure operations chain**, each taking the previous as a parent. Ordering by recorded time
+  does not work: two changes made in the same second have no path between them, and the tie would be
+  broken by identifier, which is arbitrary. *(Found by a failing test, not by argument.)*
+
 - [ ] **Test 5:** changing a class, or a schedule firing, invalidates no signature
 - [ ] **Test 7:** `grrp register` refuses when performer and registrar keys are identical
 

@@ -806,8 +806,8 @@ def redact(
         trajectory=traj_id,
         operation="redaction",
         performer=repo.party(),
-        ground=ground,
-        prior_state=state_id,
+        subject=state_id,
+        payload={"ground": ground},
         parents=_parents_for(repo, traj_id, state_id),
     )
     written = repo.append_transition(traj_id, record)
@@ -1114,6 +1114,259 @@ def withdraw(
 
 
 # --------------------------------------------------------------------------- #
+# disclosure
+# --------------------------------------------------------------------------- #
+
+
+@command(name="charter")
+def charter_cmd(
+    action: str = typer.Argument("show", help="show or adopt."),
+    classes: str = typer.Option(
+        None, "--classes", help="Your disclosure classes, narrowest first: private,group,public"
+    ),
+    identifier: str = typer.Option(None, "--id", help="A persistent identifier for the charter."),
+) -> None:
+    """Adopt or print the operating charter this record runs under.
+
+    Purpose (for you): to decide, once, who your work is visible to -- and to
+    have a record that says which rules were in force when each entry was made.
+
+    The protocol supplies no model charter, no default charter and no minimum
+    standard of conduct. A specification supplying one would be a specification
+    of governance, and communities that reject the model could not conform. It
+    asks only that certain matters be settled somewhere, because a record
+    referring to a class nobody has defined is uninterpretable.
+    """
+    repo = _repo()
+    if action == "show":
+        charter = repo.charter()
+        if not charter:
+            _echo("no charter adopted.")
+            _echo("")
+            _echo("Without one there are no disclosure classes, so nothing can be")
+            _echo("restricted or released to anyone in particular.")
+            _echo("")
+            _echo("  grrp charter adopt --classes private,group,public")
+            return
+        for key, value in charter.items():
+            _echo(f"{key:14} {value}")
+        return
+
+    if action != "adopt":
+        raise errors.GrrpError("say: grrp charter show | grrp charter adopt --classes a,b,c")
+    if not classes:
+        raise errors.GrrpError(
+            "name your disclosure classes, narrowest first:\n"
+            "  grrp charter adopt --classes private,group,public\n"
+            "The protocol supplies no default set: which classes exist, and who belongs "
+            "to each, is yours to decide."
+        )
+
+    names = [name.strip() for name in classes.split(",") if name.strip()]
+    if len(names) < 2:
+        raise errors.GrrpError("a charter needs at least two classes to order by inclusion")
+
+    existing = repo.charter()
+    version = int(existing.get("version", 0)) + 1 if existing else 1
+    store.write_yaml(
+        repo.charter_path,
+        {
+            "id": identifier or existing.get("id") if existing else identifier or "charter:local",
+            "version": version,
+            "protocol": store.PROTOCOL,
+            "classes": names,
+            "adopted": store.now(),
+            # Left for the community to settle. The protocol carries the fields
+            # and interprets none of them.
+            "membership": existing.get("membership") if existing else {},
+            "assurance": existing.get("assurance") if existing else {},
+            "retention": existing.get("retention") if existing else None,
+            "consent": existing.get("consent") if existing else None,
+            "amendment": existing.get("amendment") if existing else None,
+            "extended_targets": existing.get("extended_targets") if existing else [],
+            "extended_triggers": existing.get("extended_triggers") if existing else [],
+        },
+    )
+    _echo(f"charter version {version}")
+    _echo(f"  classes  {' < '.join(names)}   (narrowest first, ordered by inclusion)")
+    _echo("")
+    _echo("  An amendment applies to records made after it and never alters the")
+    _echo("  interpretation of records made before it.")
+    _echo("")
+    _echo("  Still yours to settle, and the protocol interprets none of it:")
+    _echo("  membership of each class, assurance per act, retention, consent, amendment.")
+    _commit(repo, [repo.charter_path], f"charter v{version}")
+
+
+@command()
+def disclose(
+    transition: str = typer.Argument(..., help="The transition to disclose."),
+    class_: str = typer.Option(..., "--class", help="A class from your charter."),
+    ground: list[str] = typer.Option(
+        None, "--ground", help=f"Why. One of: {', '.join(vocab.GROUNDS)}. Repeatable."
+    ),
+    release_at: str = typer.Option(
+        None, "--release-at", help="Date this widens by itself. Vulnerability only."
+    ),
+    release_class: str = typer.Option(
+        None, "--release-class", help="The class it widens to. Defaults to the widest."
+    ),
+    traj: str = TRAJ_OPTION,
+) -> None:
+    """Disclose a transition at a class, on a stated ground.
+
+    Purpose (for you): so that work you cannot show everyone is visible to the
+    people who need it, without your reasons for withholding it being a matter
+    of anyone's guesswork -- including yours, later.
+
+    A restriction here is an assertion, dated and attributable, where under
+    ordinary practice it is a default that asserts nothing. Every ground leaves
+    a residue that must still be disclosed, and that residue is the one question
+    a reader can always ask: was what the ground leaves disclosable in fact
+    disclosed?
+    """
+    repo = _repo()
+    available = repo.classes()
+    if not available:
+        raise errors.GrrpError(
+            "no charter, so there are no classes to disclose at.\n"
+            "  grrp charter adopt --classes private,group,public"
+        )
+    if class_ not in available:
+        raise errors.GrrpError(
+            f"{class_!r} is not a class in your charter. Classes: {' < '.join(available)}"
+        )
+
+    traj_id = repo.resolve_trajectory(traj) if traj else None
+    traj_id, target = repo.resolve_transition(traj_id, transition)
+
+    widest = available[-1]
+    grounds = list(ground or [])
+    for name in grounds:
+        if name not in vocab.GROUNDS:
+            raise errors.GrrpError(
+                f"{name!r} is not a ground of restriction. The set is closed: "
+                f"{', '.join(vocab.GROUNDS)}.\n"
+                "A community free to invent grounds is free to withhold anything by "
+                "naming a reason."
+            )
+    if class_ != widest and not grounds:
+        raise errors.ConstraintViolation(
+            "C7",
+            f"disclosing at {class_!r} is less than the widest class ({widest!r}), "
+            "so it must declare a ground.\n"
+            f"  --ground {' | '.join(vocab.GROUNDS)}",
+        )
+
+    if release_at and "vulnerability" not in grounds:
+        raise errors.GrrpError(
+            "a schedule belongs to exploratory vulnerability, which is the only ground "
+            "with a terminus.\n"
+            "Rivalry ends when the resource is uncontended, appropriability when the "
+            "funding purpose is served -- neither observable from here. Hazard does not end."
+        )
+
+    history = views.disclosure_operations(repo, traj_id, target["id"])
+    # Chain the operations, so their order is fixed by the graph rather than by
+    # a timestamp that two changes in the same second would share.
+    chain_parents = [target["id"]] + ([history[-1]["id"]] if history else [])
+
+    current = views.disclosure_of(repo, traj_id, target["id"])
+    if current:
+        old_index = available.index(current["effective_class"]) if current["effective_class"] in available else -1
+        if available.index(class_) < old_index:
+            raise errors.ConstraintViolation(
+                "C7",
+                f"disclosure may widen and never narrow. {canonical.short(target['id'])} is "
+                f"at {current['effective_class']!r}; {class_!r} is narrower.\n"
+                "A party who has read a record retains what they read, so an operation "
+                "offering the appearance of withdrawal would misdescribe to your own "
+                "participants a state of affairs obtaining outside this record.",
+            )
+        old_schedule = current.get("release_at")
+        if old_schedule and release_at and str(release_at) > str(old_schedule):
+            _echo(f"refused: a schedule may be shortened, never extended ({old_schedule}).")
+            _echo("  Recording the attempt, because it should be visible that it was made.")
+            attempt = store.new_operation(
+                trajectory=traj_id,
+                operation="disclosure_changed",
+                performer=repo.party(),
+                subject=target["id"],
+                payload={
+                    "attempted": "extend_schedule",
+                    "from": str(old_schedule),
+                    "to": str(release_at),
+                    "refused": True,
+                },
+                parents=chain_parents,
+            )
+            path = repo.append_transition(traj_id, attempt)
+            _commit(repo, [path], f"refused schedule extension {canonical.short(attempt['id'])}")
+            raise errors.ConstraintViolation(
+                "C7",
+                "a delay that can be extended indefinitely is a permanent withholding "
+                "made to look temporary.",
+            )
+
+    payload: dict = {"class": class_, "grounds": grounds}
+    if release_at:
+        payload["release_at"] = release_at
+        payload["release_class"] = release_class or widest
+    charter = repo.charter() or {}
+    payload["charter"] = {"id": charter.get("id"), "version": charter.get("version")}
+
+    record = store.new_operation(
+        trajectory=traj_id,
+        operation="disclosure_changed",
+        performer=repo.party(),
+        subject=target["id"],
+        payload=payload,
+        parents=chain_parents,
+    )
+    path = repo.append_transition(traj_id, record)
+
+    _echo(f"disclosed {canonical.short(target['id'])}  at {class_}")
+    for name in grounds:
+        _echo(f"  ground   {name} - {vocab.GROUNDS[name]['object']}")
+    if release_at:
+        _echo(f"  widens to {payload['release_class']} on {release_at}, by itself")
+    _commit(repo, [path], f"disclose {canonical.short(record['id'])}")
+
+    if grounds:
+        _echo("")
+        _echo("  What this ground leaves disclosable, and what you must still disclose:")
+        for name in grounds:
+            _echo(f"    {name}: {vocab.GROUNDS[name]['residue']}")
+        if len(grounds) > 1:
+            _echo("")
+            _echo("  Several grounds: the residue is the intersection of theirs. Each is an")
+            _echo("  assertion a reader may find false, so declaring more is not free.")
+        _echo("")
+        _echo(f"  Misapplied, this is: {vocab.GROUNDS[grounds[0]]['failure']}.")
+
+
+@command(name="grounds")
+def grounds_cmd() -> None:
+    """Print the four grounds of restriction and what each leaves disclosable.
+
+    Purpose (for you): to pick the ground that actually applies before you
+    withhold something, and to know what you are still obliged to disclose
+    having withheld it.
+    """
+    for name, ground in vocab.GROUNDS.items():
+        _echo(name)
+        _echo(f"  when      {ground['condition']}")
+        _echo(f"  restricts {ground['object']}")
+        _echo(f"  residue   {ground['residue']}")
+        _echo(f"  misapplied {ground['failure']}")
+        _echo(f"  ends      {ground['terminus'] or 'no terminus'}")
+        _echo()
+    _echo("The set is closed. A restriction fitting none of the four is inadmissible,")
+    _echo("because a community free to invent grounds is free to withhold anything by")
+    _echo("naming a reason.")
+
+
+# --------------------------------------------------------------------------- #
 # reading
 # --------------------------------------------------------------------------- #
 
@@ -1178,6 +1431,27 @@ def show_cmd(
                 )
             _echo()
 
+        restricted = [
+            (record, views.disclosure_of(repo, traj_id, record["id"]))
+            for record in repo.transitions(traj_id)
+            if record.get("kind") != "operation"
+        ]
+        restricted = [
+            (record, state) for record, state in restricted
+            if state and state.get("grounds")
+        ]
+        if restricted:
+            _echo("  restricted")
+            for record, state in restricted:
+                schedule = state.get("release_at")
+                when = f", widens to {state.get('release_class')} on {schedule}" if schedule else ""
+                _echo(
+                    f"    {canonical.short(record['id'])}  {state['effective_class']}  "
+                    f"({', '.join(state['grounds'])}){when}"
+                )
+            _echo("    each ground leaves a residue that must still be disclosed: grrp grounds")
+            _echo()
+
         if not views.has_attestation(repo, traj_id):
             _echo("  unattested throughout - useful to you, evidence to nobody")
         _echo()
@@ -1205,7 +1479,7 @@ def log_cmd(
                 _echo(
                     f"  . {canonical.short(record['id'])}  {record.get('performed')}  "
                     f"[{record.get('operation')}]".ljust(14)
-                    + f" ground {record.get('ground')}"
+                    + f" {_operation_summary(record)}"
                 )
                 continue
             _echo(
@@ -1385,12 +1659,25 @@ def _resolve_prior(repo: Repo, ref: str | None, traj: str | None = None) -> tupl
     )
 
 
+def _operation_summary(record: dict) -> str:
+    payload = record.get("payload") or {}
+    if record.get("operation") == "redaction":
+        return f"ground {payload.get('ground')}"
+    if record.get("operation") == "disclosure_changed":
+        if payload.get("refused"):
+            return f"refused: {payload.get('attempted')}"
+        grounds = ", ".join(payload.get("grounds") or []) or "no ground"
+        return f"class {payload.get('class')} ({grounds})"
+    return ""
+
+
 def _headline(repo: Repo, traj_id: str, state_id: str, width: int = 72) -> str:
     content = repo.read_state(traj_id, state_id)
     if not content:
         removal = views.redactions(repo, traj_id).get(state_id)
         if removal:
-            return f"(redacted on the ground of {removal.get('ground')})"
+            ground = (removal.get("payload") or {}).get("ground")
+            return f"(redacted on the ground of {ground})"
         return "(content not available)"
     first = content.strip().splitlines()[0]
     return first if len(first) <= width else first[: width - 1] + "…"

@@ -77,7 +77,8 @@ def render_release(repo: Repo, traj_id: str, release: dict) -> str:
     else:
         removal = views.redactions(repo, traj_id).get(state_id)
         lines.append(
-            f"*(content redacted on the ground of {removal.get('ground')}; the transition, "
+            f"*(content redacted on the ground of "
+            f"{(removal.get('payload') or {}).get('ground')}; the transition, "
             "its position in the graph and the record of the removal remain)*"
             if removal else "*(content not available)*"
         )

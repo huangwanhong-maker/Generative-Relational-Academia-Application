@@ -129,6 +129,54 @@ CREDIT_ROLES = (
     "WritingReviewEditing",
 )
 
+# --- grounds of restriction --------------------------------------------------
+# Closed.  A community may not declare a new one: grounds determine what may be
+# withheld, so a community free to invent them is free to withhold anything by
+# naming a reason, and the apparatus becomes decorative.
+#
+# Each states four things.  The fourth is what makes the instrument useful: a
+# ground stated without its failure mode is a licence, since any party may
+# assert the condition and no party can say what has gone wrong when the
+# assertion is false.
+GROUNDS = {
+    "rivalry": {
+        "condition": "a resource required for the work admits limited simultaneous use",
+        "object": "access to the resource",
+        "residue": "the trajectory in full - questions, methods, decisions, failures, "
+                   "interpretations and results, none of which consumes the resource",
+        "failure": "a restriction on access converted into a restriction on knowledge",
+        "terminus": None,
+    },
+    "hazard": {
+        "condition": "propagation of the content would create a risk of serious harm, "
+                     "and the risk arises from the content being known",
+        "object": "the propagable content of the method - the sequence by which a "
+                  "capability is obtained, the constraints, the parameters that matter",
+        "residue": "the existence of the work, the questions pursued, the decisions taken "
+                   "and their reasons, the interpretations reached, and results that do "
+                   "not convey the method",
+        "failure": "the widest restriction obtained on the strongest justification, "
+                   "unfalsifiable from outside the restricted class",
+        "terminus": None,
+    },
+    "vulnerability": {
+        "condition": "exposure of the work at its present stage would suppress or distort it",
+        "object": "the timing of exposure",
+        "residue": "everything, at the scheduled time",
+        "failure": "postponement converted into permanent withholding",
+        "terminus": "scheduled",
+    },
+    "appropriability": {
+        "condition": "the work is funded by an arrangement that requires excludability",
+        "object": "the content whose disclosure would destroy that excludability",
+        "residue": "the existence of the work, the questions pursued, the decisions taken "
+                   "and their reasons, and negative results",
+        "failure": "rent-seeking secrecy - secrecy obtained on an economic justification "
+                   "that does not apply",
+        "terminus": None,
+    },
+}
+
 # --- redaction grounds -------------------------------------------------------
 # No deployed vocabulary covers why content was removed, so this is a local set
 # and a community charter may replace it.  It is separate from the four grounds

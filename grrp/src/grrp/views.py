@@ -238,6 +238,64 @@ def contested_attributions(repo: Repo, traj_id: str) -> dict[str, list[dict]]:
     return disputes
 
 
+def disclosure_operations(repo: Repo, traj_id: str, tx_id: str) -> list[dict]:
+    """Every recorded change of disclosure for a transition, in order.
+
+    The operations chain: each takes the previous one as a parent, so the graph
+    fixes their order.  Ordering by recorded time would not: two changes made in
+    the same second have no path between them, and the tie would be broken by
+    identifier, which is arbitrary.
+    """
+    return [
+        record
+        for record in repo.transitions(traj_id)
+        if record.get("kind") == "operation"
+        and record.get("operation") == "disclosure_changed"
+        and record.get("subject") == tx_id
+    ]
+
+
+def disclosure_of(repo: Repo, traj_id: str, tx_id: str, at: str | None = None) -> dict | None:
+    """The disclosure of a transition, derived from the operations log.
+
+    Derived and never stored.  A scheduled release widens the class at the
+    stated time **without a further act by any party**, so the effective class
+    is a function of the log and the clock, and there is nothing to fire, and
+    nothing that can be forgotten.
+
+    Returns None where nothing has been disclosed: not a restriction with no
+    ground, but a record that has not been published.
+    """
+    # A refused attempt is recorded so that it is visible it was made. It is
+    # not a declaration, and must not be read as one.
+    operations = [
+        record
+        for record in disclosure_operations(repo, traj_id, tx_id)
+        if not (record.get("payload") or {}).get("refused")
+    ]
+    if not operations:
+        return None
+
+    state = dict(operations[-1].get("payload") or {})
+    state["declared_at"] = operations[-1].get("performed")
+
+    now = at or _now()
+    scheduled = state.get("release_at")
+    if scheduled and str(scheduled) <= now[: len(str(scheduled))]:
+        state["effective_class"] = state.get("release_class") or state.get("class")
+        state["schedule_fired"] = True
+    else:
+        state["effective_class"] = state.get("class")
+        state["schedule_fired"] = False
+    return state
+
+
+def _now() -> str:
+    from .store import now
+
+    return now()
+
+
 def redactions(repo: Repo, traj_id: str) -> dict[str, dict]:
     """States whose content has been removed, by state identifier.
 
@@ -248,11 +306,11 @@ def redactions(repo: Repo, traj_id: str) -> dict[str, dict]:
     own history, in a way no later reader could detect.
     """
     return {
-        record["prior_state"]: record
+        record["subject"]: record
         for record in repo.transitions(traj_id)
         if record.get("kind") == "operation"
         and record.get("operation") == "redaction"
-        and record.get("prior_state")
+        and record.get("subject")
     }
 
 

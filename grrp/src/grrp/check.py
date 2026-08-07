@@ -110,11 +110,25 @@ def _check_trajectory(repo: Repo, traj_id: str, report: Report) -> None:
                     f"{traj_id}/{label}: an operation carries no act and no disposition. "
                     "Operations and transitions must not be records of the same kind."
                 )
+            payload = record.get("payload") or {}
+            if not record.get("subject"):
+                report.fail(f"{traj_id}/{label}: an operation must name its subject")
             if record.get("operation") == "redaction":
-                if not record.get("ground"):
+                if not payload.get("ground"):
                     report.fail(f"{traj_id}/{label}: a redaction must record its ground")
-                if not record.get("prior_state"):
-                    report.fail(f"{traj_id}/{label}: a redaction must name the state redacted")
+            if record.get("operation") == "disclosure_changed" and not payload.get("refused"):
+                grounds = payload.get("grounds") or []
+                for name in grounds:
+                    if name not in vocab.GROUNDS:
+                        report.fail(
+                            f"{traj_id}/{label}: {name!r} is not one of the four grounds. "
+                            "The set is closed."
+                        )
+                if payload.get("release_at") and "vulnerability" not in grounds:
+                    report.fail(
+                        f"{traj_id}/{label}: a schedule belongs to exploratory vulnerability, "
+                        "the only ground with a terminus."
+                    )
         else:
             report.fail(f"{traj_id}/{label}: unknown kind {record.get('kind')!r}")
 
@@ -238,7 +252,8 @@ def _check_content(repo: Repo, traj_id: str, records: list[dict], report: Report
         if operation:
             report.note(
                 f"{traj_id}/{canonical.short(state_id)}: content redacted on the ground of "
-                f"{operation.get('ground')}. The transition, its position in the graph and "
+                f"{(operation.get('payload') or {}).get('ground')}. The transition, its "
+                "position in the graph and "
                 "the record of the removal all remain."
             )
         else:

@@ -7,9 +7,8 @@ where the two differ.**
 A command-line tool that records the trajectory of an inquiry as **typed transitions** in an ordinary
 git repository, in plain text, **with no server, no account, and no network**.
 
-**Status: M0–M2, M3a, M3b.** All eight acts, redaction, attestation by a second party,
-attribution and absorption. Disclosure grounds, bundling and continuation are M3c–M4 and are not
-built.
+**Status: M0–M3.** All eight acts, redaction, attestation by a second party, attribution and
+absorption, and disclosure on grounds. Bundling and continuation are M4 and are not built.
 
 ---
 
@@ -71,6 +70,33 @@ state absorbed has one instrument, and it is the disclosure class of that state.
 `grrp contest` records that an attribution is wrong. Nothing is deleted or altered, and **no party is
 empowered to settle it** — what the record contributes is that both positions are visible with their
 dates.
+
+### Withholding
+
+```bash
+grrp charter adopt --classes private,group,public   # yours to decide; there is no default set
+grrp grounds                                        # the four, and what each leaves disclosable
+grrp disclose <tx> --class private --ground appropriability
+grrp disclose <tx> --class private --ground vulnerability --release-at 2027-01-01
+```
+
+The question is never whether to withhold but **on what ground — and what follows from the ground**.
+There are four, the set is closed, and each leaves a **residue that must still be disclosed**:
+
+| ground | restricts | residue |
+|---|---|---|
+| **rivalry** | access to the resource | **the trajectory in full** |
+| **hazard** | the propagable content of a method | existence, questions, decisions, interpretations, results that do not convey the method |
+| **vulnerability** | the timing of exposure | **everything, at the scheduled time** |
+| **appropriability** | content whose disclosure destroys excludability | existence, questions, decisions, **negative results** |
+
+Declaring a ground prints its residue and the named failure it becomes if misapplied. That residue is
+the one question a reader can always ask: *was what the ground leaves disclosable in fact disclosed?*
+
+**Disclosure may widen and never narrow.** There is no `unpublish`. A schedule belongs only to
+vulnerability — the only ground with a terminus — fires by itself at the stated time, and **may be
+shortened but never extended**; an attempt to extend is refused *and recorded*, because a delay that
+can be extended indefinitely is a permanent withholding made to look temporary.
 
 ### Two parties
 

@@ -177,6 +177,31 @@ class Repo:
             raise errors.UnknownReference(f"no key named {name!r} in {self.keys_dir}")
         return self.profile()["party"]
 
+    @property
+    def charter_path(self) -> Path:
+        return self.grrp_dir / "charter.yaml"
+
+    def charter(self) -> dict | None:
+        """The community's operating charter, if one has been adopted.
+
+        The charter is where everything contested lives: which disclosure
+        classes exist and who belongs to them, consent, retention, conduct,
+        assurance, whether registration is honoured for priority.  The protocol
+        references it by identifier and version and interprets nothing in it.
+        """
+        return read_yaml(self.charter_path) if self.charter_path.is_file() else None
+
+    def classes(self) -> list[str]:
+        """Disclosure classes, narrowest first.
+
+        Ordered by inclusion: a record disclosed at one class is disclosed to
+        every party in the classes that contain it.  Without the ordering,
+        scheduled release has no meaning.  The identity of the classes and the
+        membership of each are the charter's business, not the protocol's.
+        """
+        charter = self.charter()
+        return list(charter.get("classes") or []) if charter else []
+
     def set_tier(self, tier: str) -> None:
         profile = self.profile()
         profile["tier"] = tier
@@ -460,8 +485,8 @@ def new_operation(
     trajectory: str,
     operation: str,
     performer: str,
-    ground: str | None = None,
-    prior_state: str | None = None,
+    subject: str | None = None,
+    payload: dict | None = None,
     parents: list[str] | None = None,
     performed: str | None = None,
 ) -> dict:
@@ -481,10 +506,11 @@ def new_operation(
         "kind": "operation",
         "trajectory": f"traj:{trajectory}",
         "parents": parents or [],
-        "prior_state": prior_state,
+        "prior_state": None,
         "posterior_state": None,
         "operation": operation,
-        "ground": ground,
+        "subject": subject,
+        "payload": payload or {},
         "performer": performer,
         "performed": stamp,
         "registration": {

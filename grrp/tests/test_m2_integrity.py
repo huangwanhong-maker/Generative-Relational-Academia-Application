@@ -106,7 +106,8 @@ def test_an_operation_is_not_a_transition(trajectory):
     for field in ("act", "target", "relation", "disposition"):
         assert field not in operations[0]
     assert operations[0]["operation"] == "redaction"
-    assert operations[0]["ground"] == "personal_data"
+    assert operations[0]["subject"] == state
+    assert operations[0]["payload"]["ground"] == "personal_data"
 
     output = workspace.run("log", traj_id).output
     assert "[redaction]" in output
@@ -125,7 +126,7 @@ def test_the_redaction_ground_is_covered_by_the_identifier(trajectory):
         if store.read_yaml(p).get("kind") == "operation"
     )
     record = store.read_yaml(path)
-    record["ground"] = "legal_order"
+    record["payload"]["ground"] = "legal_order"
     store.write_yaml(path, record)
 
     result = workspace.run("check", expect_ok=False)
