@@ -29,7 +29,7 @@ a builder needs, and cites the requirement behind each item so a disputed choice
 | **UI** A local page — Level 3, outside conformance | ✅ done | 1 day |
 | **M5** Conformance suite | ⬜ | 3–4 days |
 
-155 tests pass; 1 is skipped, and it is platform-specific.
+170 tests pass; 1 is skipped, and it is platform-specific.
 **All eight acceptance tests pass.**
 
 ---
@@ -397,7 +397,8 @@ mistake, in miniature *(P-IV Req. 4.4, 5.3)*.
 **The protocol is implementable with none of it, and requires none of it** *(C9 · R14)*. Anything here
 is optional, additive, and clearly marked as outside conformance.
 
-- [x] **`grrp ui`** — a local page for reading a record and adding to it. Stdlib only, loopback only,
+- [x] **`grrp ui`** — a local page for starting records, recording acts, and seeing the
+      trajectory drawn. Stdlib only, loopback only,
       no account, nothing leaves the machine, a per-run token on every form. It shows the question,
       the live positions, the open register, what is proposed, what is restricted **with its residue
       beside it**, and the lineage — and it declares itself Level 3 on every page
@@ -407,6 +408,15 @@ is optional, additive, and clearly marked as outside conformance.
         that narrows disclosure, no approve or veto
   - [x] A test asserts **no module of the record imports it**, so the claim that the protocol is
         implementable without it is checked rather than asserted
+  - [x] **Starts records**: a directory, a git repository inside it if wanted, a keypair, and the
+        opening question — so the first thing anyone meets is not a terminal
+  - [x] **Draws the trajectory** as a DAG in inline SVG, no libraries: one column per step from the
+        question, edges labelled by the act that made them, **divergent branches drawn identically**
+  - [x] Records every act, registers a colleague's proposal, and releases
+  - [x] Record-writing logic extracted to [`actions.py`](../grrp/src/grrp/actions.py), shared with
+        the command line. A test asserts a record written from the page and one written from the
+        terminal are **the same record** — otherwise the page is a second implementation rather than
+        an application over the first
 - [ ] Capture assistant proposing candidate transitions from the local event plane
   - [ ] A model may **occasion** a transition and may **not author or register one**; a
         model-originated proposal is **marked** *(P-IV Req. 4.3)*

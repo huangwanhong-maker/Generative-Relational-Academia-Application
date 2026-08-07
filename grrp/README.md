@@ -53,9 +53,14 @@ grrp ui                    # a local page, if you would rather see it than read 
 
 ### The page
 
-`grrp ui` serves a page on the loopback interface: the question, the live positions, what is
-unanswered, what is proposed, what is restricted **with its residue beside it**, and the lineage.
-You can record an act from it.
+```bash
+grrp ui        # anywhere — it does not need a record to exist yet
+```
+
+Serves a page on the loopback interface. From it you can **start a record** (a directory, and a git
+repository inside it if you want one), open a question, record any act, register a colleague's
+proposal, release, and **see the trajectory drawn**: one column per step away from the question,
+edges labelled by the act that made them, divergent branches side by side and drawn identically.
 
 It is **Level 3 — an application over the record, outside conformance**. Everything it offers is
 available from the command line, no module of the record imports it, and deleting it would leave the
@@ -63,8 +68,13 @@ record untouched. That last claim is checked by a test rather than asserted. Std
 nothing leaves the machine.
 
 It is tested for what the design forbids, because a screen is where the temptation is strongest:
-no quantity over participants or trajectories, no branch marked principal, no control that narrows
-disclosure, no approve or veto, and the word *merge* nowhere at all.
+no quantity over participants or trajectories, no branch marked principal *in the drawing or
+anywhere else*, no control that narrows disclosure, no approve or veto, and the word *merge* nowhere
+at all — not in the page, not in the stylesheet.
+
+A test also asserts that a record written from the page and one written from the terminal are the
+same record. Both go through [`actions.py`](src/grrp/actions.py), so the page is an application over
+the protocol rather than a second implementation of it.
 
 ### Credit
 

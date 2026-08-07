@@ -17,7 +17,7 @@ from http.server import ThreadingHTTPServer
 import pytest
 
 from conftest import sid
-from grrp import ui, views
+from grrp import canonical, ui, views
 
 
 def page(repo, traj_id, token="t", message=""):
@@ -80,11 +80,21 @@ def test_divergence_is_shown_with_neither_branch_principal(trajectory):
 
 
 def test_the_page_never_says_merge(trajectory):
+    """The substrate uses the word for an operation this tool does not have,
+    so borrowing it would make every reader expect behaviour the record has no
+    way to provide."""
     workspace, traj_id = trajectory
     workspace.run("claim", traj_id, "-m", "A position.")
-    assert "merge" not in page(workspace.repo, traj_id).lower()
-    assert "merge" not in ui.index(workspace.repo).decode("utf-8").lower()
+
+    def rendered(payload: bytes) -> str:
+        # The record's directory name is shown as its title, and under pytest
+        # that is the name of this test.
+        return payload.decode("utf-8").lower().replace(workspace.repo.root.name.lower(), "")
+
+    assert "merge" not in rendered(ui.trajectory(workspace.repo, traj_id, "t"))
+    assert "merge" not in rendered(ui.index(workspace.repo))
     assert "merge" not in ui.STYLE.lower()
+    assert "merge" not in " ".join(ui.ACTS.values()).lower()
 
 
 def test_the_page_computes_no_quantity_over_participants_or_trajectories(trajectory):
@@ -244,3 +254,179 @@ def test_the_protocol_does_not_depend_on_the_page(workspace):
             continue
         assert "import ui" not in path.read_text(encoding="utf-8")
         assert "from .ui" not in path.read_text(encoding="utf-8")
+
+
+# --- starting a record from the page -----------------------------------------
+
+def test_the_page_runs_where_no_record_exists_and_offers_to_start_one(tmp_path):
+    """It has to: otherwise the first thing anyone meets is a terminal."""
+    space = ui.Workspace(tmp_path)
+    assert space.records() == []
+
+    body = ui.records_index(space, "tok").decode("utf-8")
+    assert "Start a record" in body
+    assert "question you are actually trying to answer" in body.lower()
+
+
+def test_creating_a_record_makes_a_git_repository_and_opens_the_question(tmp_path):
+    from grrp import actions, gitutil
+
+    repo, traj_id = actions.create_record(
+        tmp_path, "Trust and power", "Is trust a property between individuals?", use_git=True
+    )
+
+    assert repo.root.name == "trust-and-power"
+    assert repo.profile_path.is_file()
+    assert repo.trajectory(traj_id)["question"].startswith("Is trust")
+    if gitutil.available():
+        assert (repo.root / ".git").is_dir()
+        assert gitutil.in_work_tree(repo.root)
+
+
+def test_a_record_works_without_git(tmp_path):
+    """Version control is a substrate, not a requirement."""
+    from grrp import actions
+
+    repo, traj_id = actions.create_record(tmp_path, "no vcs", "A question?", use_git=False)
+    assert not (repo.root / ".git").exists()
+    assert repo.transitions(traj_id)
+
+
+def test_records_are_listed_without_being_ordered_or_counted(tmp_path):
+    from grrp import actions
+
+    actions.create_record(tmp_path, "first", "First question?", use_git=False)
+    actions.create_record(tmp_path, "second", "Second question?", use_git=False)
+
+    rendered = ui.records_index(ui.Workspace(tmp_path), "tok").decode("utf-8")
+    rendered = rendered.split("</style>")[1].lower()
+    assert "first question" in rendered and "second question" in rendered
+    for forbidden in ("total", "score", "rank", "most", "least", "%"):
+        assert forbidden not in rendered
+
+
+# --- the drawing -------------------------------------------------------------
+
+def test_the_trajectory_is_drawn(trajectory):
+    workspace, traj_id = trajectory
+    workspace.run("claim", traj_id, "-m", "Trust obtains between individuals.")
+    workspace.run("challenge", "-m", "This omits institutional power.")
+
+    svg = ui.graph(workspace.repo, traj_id)
+    assert svg.startswith("<div class=scroll><svg")
+    assert "Trust obtains between" in svg
+    assert "question" in svg and "position" in svg and "objection" in svg
+    assert "challenge" in svg, "edges are labelled by the act that made them"
+
+
+def test_a_divergence_is_drawn_with_neither_branch_favoured(trajectory):
+    workspace, traj_id = trajectory
+    workspace.run("claim", traj_id, "-m", "A shared position.")
+    shared = views.current_states(workspace.repo, traj_id)[0]
+    workspace.run("transform", sid(shared), "-m", "Narrow it to institutions.")
+    workspace.run("transform", sid(shared), "-m", "Keep the scope, weaken the claim.")
+
+    svg = ui.graph(workspace.repo, traj_id)
+    assert "Narrow it to" in svg and "Keep the scope" in svg
+    assert svg.count("n-box live") == 2, "both drawn identically; nothing marks one as the line"
+    assert "merge" not in svg.lower()
+
+
+def test_the_drawing_carries_no_quantity(trajectory):
+    workspace, traj_id = trajectory
+    workspace.run("claim", traj_id, "-m", "A position.")
+    workspace.run("challenge", "-m", "An objection.")
+    svg = ui.graph(workspace.repo, traj_id).lower()
+    for forbidden in ("score", "rank", "total", "count"):
+        assert forbidden not in svg
+
+
+def test_a_redacted_state_is_named_in_the_drawing(trajectory):
+    workspace, traj_id = trajectory
+    workspace.run("claim", traj_id, "-m", "Withdrawn material.")
+    state = views.current_states(workspace.repo, traj_id)[0]
+    workspace.run("redact", sid(state), "--ground", "erasure_request", "--yes")
+    assert "redacted on the ground of" in ui.graph(workspace.repo, traj_id)
+
+
+def test_an_empty_trajectory_draws_without_failing(workspace):
+    workspace.run("new", "A question", "--title", "q")
+    assert "<svg" in ui.graph(workspace.repo, "q")
+
+
+# --- more acts from the page -------------------------------------------------
+
+def test_releasing_from_the_page_enumerates_standing_objections(trajectory):
+    workspace, traj_id = trajectory
+    workspace.run("claim", traj_id, "-m", "A position.")
+    workspace.run("challenge", "-m", "An objection that stands.")
+
+    said = ui._perform(workspace.repo, traj_id, {"act": ["release"], "state": [""]})
+    assert "enumerating the objections that stand" in said
+    assert "nothing about their merit" in said
+    assert len(workspace.repo.releases(traj_id)[0]["standing_objections"]) == 1
+
+
+def test_connecting_from_the_page_records_the_scheme_and_the_date(trajectory):
+    workspace, traj_id = trajectory
+    workspace.run("claim", traj_id, "-m", "A position.")
+    ui._perform(
+        workspace.repo, traj_id,
+        {"act": ["connect"], "message": ["Same obstruction."], "to": ["doi:10.1234/x"],
+         "state": [""]},
+    )
+    connection = [r for r in workspace.repo.transitions(traj_id) if r["act"] == "connection"][0]
+    assert connection["artefacts"][0]["scheme"] == "doi"
+    assert connection["artefacts"][0]["referenced_on"]
+
+
+def test_a_connection_with_nothing_to_connect_to_is_refused(trajectory):
+    workspace, traj_id = trajectory
+    workspace.run("claim", traj_id, "-m", "A position.")
+    said = ui._perform(
+        workspace.repo, traj_id,
+        {"act": ["connect"], "message": ["Related."], "to": [""], "state": [""]},
+    )
+    assert "needs something to connect to" in said
+
+
+def test_a_failed_check_from_the_page_stands_unresolved(trajectory):
+    workspace, traj_id = trajectory
+    workspace.run("claim", traj_id, "-m", "The method transfers.")
+    ui._perform(
+        workspace.repo, traj_id,
+        {"act": ["verify"], "message": ["It did not."], "failed": ["on"], "state": [""]},
+    )
+    verification = [r for r in workspace.repo.transitions(traj_id) if r["act"] == "verification"][0]
+    assert verification["disposition"] == "unresolved"
+    assert verification["relation"] == "cito:refutes"
+
+
+def test_registering_from_the_page_refuses_your_own_act(trajectory):
+    from grrp import actions, keys
+
+    workspace, traj_id = trajectory
+    other = keys.generate(workspace.repo.keys_dir, "colleague")
+    workspace.run("key", "add", "colleague", other)
+    ui._perform(workspace.repo, traj_id,
+                {"act": ["claim"], "message": ["A position."], "state": [""]})
+    proposal = workspace.repo.proposals(traj_id)[0]
+
+    with pytest.raises(Exception) as raised:
+        actions.register_proposal(workspace.repo, traj_id, proposal)
+    assert "C2" in str(raised.value)
+
+
+def test_the_page_and_the_terminal_write_the_same_record(trajectory):
+    """A record made from a page and one made from a terminal must be the same
+    record, or the page is a second implementation rather than an application
+    over the first."""
+    workspace, traj_id = trajectory
+    ui._perform(workspace.repo, traj_id,
+                {"act": ["claim"], "message": ["From the page."], "state": [""]})
+    from_page = workspace.repo.transitions(traj_id)[-1]
+
+    assert from_page["protocol"] == "grrp/0.1"
+    assert from_page["kind"] == "transition"
+    assert from_page["id"] == canonical.transition_id(from_page)
+    assert workspace.run("check").exit_code == 0

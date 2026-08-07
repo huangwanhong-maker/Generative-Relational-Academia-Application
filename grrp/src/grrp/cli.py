@@ -19,6 +19,7 @@ from pathlib import Path
 import typer
 
 from . import (
+    actions,
     bundle,
     canonical,
     check as check_module,
@@ -223,29 +224,18 @@ def _record(
     who did not coordinate.
     """
     written = [*(extra or [])]
-    for state_id in (record.get("prior_state"), record.get("posterior_state")):
-        if state_id:
-            state_path = repo.state_path(traj_id, state_id)
-            if state_path.is_file():
-                written.append(state_path)
-
-    if repo.tier() == "personal":
-        written.insert(0, repo.append_transition(traj_id, record))
-        _echo(f"{note}  {canonical.short(record['id'])}")
-        if record.get("posterior_state"):
-            _echo(f"  state    {canonical.short(record['posterior_state'])}")
-        _echo("  unattested (you registered your own act)")
-    else:
-        record = dict(record)
-        record["registration"] = None
-        written.insert(0, repo.write_proposal(traj_id, record))
-        _echo(f"{note}  {canonical.short(record['id'])}  (proposed)")
-        if record.get("posterior_state"):
-            _echo(f"  state    {canonical.short(record['posterior_state'])}")
+    result = actions.submit(repo, traj_id, record, extra=written)
+    record = result.record
+    _echo(f"{note}  {canonical.short(record['id'])}" + ("  (proposed)" if result.proposed else ""))
+    if record.get("posterior_state"):
+        _echo(f"  state    {canonical.short(record['posterior_state'])}")
+    if result.proposed:
         _echo("  not yet in the log. Another party registers it:")
         _echo(f"    grrp register {canonical.short(record['id'])}")
+    else:
+        _echo("  unattested (you registered your own act)")
 
-    _commit(repo, written, f"{record.get('act')} {canonical.short(record['id'])}")
+    _commit(repo, result.paths, f"{record.get('act')} {canonical.short(record['id'])}")
 
 
 # --------------------------------------------------------------------------- #
@@ -264,53 +254,18 @@ def init(
     nothing else. Works inside an existing git repository or on its own.
     """
     root = Path.cwd()
-    if (root / store.GRRP_DIR).exists():
-        raise errors.AlreadyInitialised(f"{store.GRRP_DIR} already exists here")
-
-    repo = Repo(root)
-    repo.grrp_dir.mkdir(parents=True)
-    repo.events_dir.mkdir(parents=True)
-    (repo.events_dir / ".keep").write_text("", encoding="utf-8")
-
-    party = keys.generate(repo.keys_dir, name)
-
-    # The event plane is a monitoring log by construction: who attended, whose
-    # files changed, when. It stays local, is never exported, and reaches
-    # disclosure only through a transition that references it.
-    (repo.grrp_dir / ".gitignore").write_text(
-        "# The local event plane is never exported and never published.\n"
-        "events/\n"
-        "# Private keys never leave this machine.\n"
-        "keys/*.key\n"
-        "# Sealed content is disclosed to nobody until you open it.\n"
-        "sealed/\n"
-        "# Bundles obtained from elsewhere are kept here, not republished.\n"
-        "received/\n",
-        encoding="utf-8",
-    )
-
-    store.write_yaml(
-        repo.profile_path,
-        {
-            "protocol": store.PROTOCOL,
-            "tier": "personal",
-            "hash": canonical.HASH,
-            "canonicalisation": canonical.CANONICALISATION,
-            "signature": "none",
-            "party": party,
-            "vocabularies": vocab.VOCABULARIES,
-            "charter": None,
-            "created": store.now(),
-        },
-    )
-    repo.trajectories_dir.mkdir(exist_ok=True)
+    try:
+        repo, paths = actions.initialise(root, name)
+    except errors.AlreadyInitialised:
+        raise errors.AlreadyInitialised(f"{store.GRRP_DIR} already exists here") from None
+    party = repo.party()
 
     _echo(f"initialised in {root}")
     _echo(f"  you are {party}")
     _echo("  tier     personal - useful alone, and carrying no evidential weight")
     _echo("")
     _echo('next: grrp new "the question you are actually working on"')
-    _commit(repo, [repo.profile_path, repo.grrp_dir / ".gitignore"], "init")
+    _commit(repo, paths, "init")
 
 
 @command()
@@ -359,48 +314,13 @@ def new(
     forget you chose it.
     """
     repo = _repo()
-    traj_id = store.slugify(title or question)
-    directory = repo.trajectory_dir(traj_id)
-    if directory.exists():
-        suffix = canonical.sha256_hex(store.now().encode())[:6]
-        traj_id = f"{traj_id}-{suffix}"
-        directory = repo.trajectory_dir(traj_id)
-    directory.mkdir(parents=True)
+    traj_id, paths = actions.open_trajectory(repo, question, title)
 
-    party = repo.party()
-    trajectory_path = directory / "trajectory.yaml"
-    store.write_yaml(
-        trajectory_path,
-        {
-            "id": f"traj:{traj_id}",
-            "protocol": store.PROTOCOL,
-            "title": title or question,
-            "question": question,
-            "created": store.now(),
-            "creator": party,
-            "parents": [],
-            "charter": None,
-        },
-    )
-
-    state_id, state_path = repo.write_state(traj_id, question)
-    record = store.new_transition(
-        trajectory=traj_id,
-        act="question",
-        performer=party,
-        parents=[],
-        prior_state=None,
-        posterior_state=state_id,
-        target="question",
-        trigger="self",
-        disposition="unresolved",
-    )
-    path = repo.append_transition(traj_id, record)
     _echo(f"opened   {traj_id}")
-    _echo(f"  question {canonical.short(state_id)}")
+    _echo(f"  question {canonical.short(views.opening_state(repo, traj_id))}")
     _echo("")
     _echo('next: grrp claim -m "<what you currently think>"   (omit -m to use your editor)')
-    _commit(repo, [trajectory_path, state_path, path], f"open {traj_id}")
+    _commit(repo, paths, f"open {traj_id}")
 
 
 @command()
@@ -1926,7 +1846,7 @@ def ui_cmd(
     port: int = typer.Option(7373, help="Port on the loopback interface."),
     no_browser: bool = typer.Option(False, "--no-browser", help="Do not open a browser."),
 ) -> None:
-    """Open a local page for reading the record and adding to it.
+    """Open a local page: start records, record acts, see the trajectory drawn.
 
     Purpose (for you): to see where a line of work stands and record an act
     without leaving what you were doing, on the days when a terminal is the
@@ -1940,12 +1860,16 @@ def ui_cmd(
     """
     from . import ui
 
-    repo = _repo()
+    # A workspace, not a record: the page can create one, so it must be able to
+    # run where none exists yet.
+    workspace = ui.Workspace(Path.cwd())
     _echo(f"http://127.0.0.1:{port}/")
+    if not workspace.records():
+        _echo("  no record here yet - the page will offer to start one.")
     _echo("  Level 3 - an application over the record, outside conformance.")
     _echo("  Loopback only. No account, nothing leaves this machine.")
     _echo("  Ctrl-C to stop.")
-    ui.serve(repo, port=port, open_browser=not no_browser)
+    ui.serve(workspace, port=port, open_browser=not no_browser)
 
 
 @command(name="check")
