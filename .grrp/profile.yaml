@@ -1,0 +1,18 @@
+protocol: grrp/0.1
+tier: personal
+hash: sha256
+canonicalisation: json-sorted/1
+signature: none
+party: key:ed25519:FLey0VpLqIJMiPwPysm3bv_-6fZpwI_f2DRZrpZzJUk
+vocabularies:
+  relation:
+    prefix: cito
+    namespace: http://purl.org/spar/cito/
+  contributor:
+    prefix: credit
+    namespace: https://credit.niso.org/contributor-roles/
+  provenance:
+    prefix: prov
+    namespace: http://www.w3.org/ns/prov#
+charter:
+created: '2026-08-07T10:46:10Z'
