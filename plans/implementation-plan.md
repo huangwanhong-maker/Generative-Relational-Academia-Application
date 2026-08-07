@@ -29,9 +29,11 @@ a builder needs, and cites the requirement behind each item so a disputed choice
 | **UI** A local page — Level 3, outside conformance | ✅ done | 1 day |
 | **M5** Conformance suite | ⬜ | 3–4 days |
 
-172 tests pass; 1 is skipped, and it is platform-specific.
+175 tests pass; 1 is skipped, and it is platform-specific.
 A walkthrough of the whole thing is at [`grrp/examples/walkthrough.sh`](../grrp/examples/walkthrough.sh);
-writing it found two bugs in `bundle` that argument had not.
+writing it found two bugs in `bundle` that argument had not, and running it on another platform
+found a third, worse one: **records written on Windows did not verify anywhere**, because
+`Path.write_text` translates newlines and the identifier is the hash of the bytes.
 **All eight acceptance tests pass.**
 
 ---

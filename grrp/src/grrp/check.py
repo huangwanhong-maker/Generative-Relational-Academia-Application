@@ -266,7 +266,19 @@ def _check_content(repo: Repo, traj_id: str, records: list[dict], report: Report
 
     sealed = repo.grrp_dir / "sealed"
     for state_id in sorted(referenced):
-        if repo.state_path(traj_id, state_id).is_file():
+        path = repo.state_path(traj_id, state_id)
+        if path.is_file():
+            # The identifier is the hash of the bytes on disk, so anyone
+            # holding the file can check it without this tool. Verifying it
+            # here is what makes that claim true rather than merely stated.
+            content = path.read_bytes().decode("utf-8")
+            if canonical.state_id(content) != state_id:
+                report.fail(
+                    f"{traj_id}/{canonical.short(state_id)}: the content does not yield its "
+                    "identifier. The file has been edited, or something rewrote its line "
+                    "endings in transit -- git will do that on checkout unless the record "
+                    "carries a .gitattributes telling it not to."
+                )
             continue
         if (sealed / f"{state_id.split(':')[-1]}.md").is_file():
             report.note(

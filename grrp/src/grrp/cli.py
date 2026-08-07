@@ -1504,7 +1504,7 @@ def seal_cmd(
     state_id = canonical.state_id(content)
     sealed = repo.grrp_dir / "sealed"
     sealed.mkdir(parents=True, exist_ok=True)
-    (sealed / f"{state_id.split(':')[-1]}.md").write_text(content, encoding="utf-8")
+    (sealed / f"{state_id.split(':')[-1]}.md").write_bytes(content.encode("utf-8"))
 
     record = store.new_transition(
         trajectory=traj_id,
@@ -1552,7 +1552,7 @@ def openseal_cmd(
     if not source.is_file():
         raise errors.GrrpError(f"nothing sealed under {canonical.short(state_id)}")
 
-    content = source.read_text(encoding="utf-8")
+    content = source.read_bytes().decode("utf-8")
     if canonical.state_id(content) != state_id:
         raise errors.GrrpError(
             "the sealed content does not yield the registered identifier. "
@@ -1561,7 +1561,7 @@ def openseal_cmd(
 
     target = repo.state_path(traj_id, state_id)
     target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_text(content, encoding="utf-8")
+    target.write_bytes(content.encode("utf-8"))
     source.unlink()
 
     _echo(f"opened   {canonical.short(state_id)}")

@@ -290,6 +290,20 @@ once a second vocabulary uses the same word differently. Three relations the des
 counterpart (`generalises`, `specialises`, `transfers`); they are available as `local:` values, are
 flagged as local, and need a charter to define them.
 
+## Records are bytes
+
+A state's identifier is the **hash of the bytes of its file**, so anyone holding the file can check
+it with `sha256sum` and no knowledge of this tool:
+
+```bash
+sha256sum trajectories/*/states/*.md      # the hash is the filename
+```
+
+Nothing in a record is ever written in text mode, because that translates newlines on the way out and
+would leave a file whose name is a hash of something the file no longer contains. `grrp init` also
+writes a `.gitattributes` telling git not to rewrite the record on checkout, and `grrp check`
+verifies that every state's content still yields its identifier.
+
 ## A walkthrough
 
 ```bash

@@ -63,10 +63,17 @@ def read_yaml(path: Path) -> dict:
 
 
 def write_yaml(path: Path, data: dict) -> None:
+    """Write a record file.
+
+    Bytes, never text mode.  Python translates newlines on write when the
+    platform wants it to, so a record written on one machine would not be byte
+    for byte the record written on another, and identical records would not
+    compare equal across a bundle.
+    """
     path.parent.mkdir(parents=True, exist_ok=True)
     buffer = io.StringIO()
     _yaml.dump(data, buffer)
-    path.write_text(buffer.getvalue(), encoding="utf-8")
+    path.write_bytes(buffer.getvalue().encode("utf-8"))
 
 
 def topological(records: list[dict]) -> list[dict]:
@@ -266,7 +273,12 @@ class Repo:
         path = self.state_path(traj_id, sid)
         path.parent.mkdir(parents=True, exist_ok=True)
         if not path.exists():
-            path.write_text(content, encoding="utf-8")
+            # Bytes, never text mode. A state's identifier is the hash of the
+            # bytes of its file, so that anyone holding the file can check it
+            # with sha256sum and no knowledge of this tool. Text mode would
+            # translate newlines on the way out, leaving a file whose name is a
+            # hash of something the file no longer contains.
+            path.write_bytes(content.encode("utf-8"))
         return sid, path
 
     def read_state(self, traj_id: str, sid: str) -> str | None:
@@ -274,7 +286,9 @@ class Repo:
         path = self.state_path(traj_id, sid)
         if not path.is_file():
             return None
-        return path.read_text(encoding="utf-8")
+        # Read the bytes, not the text: text mode would translate CRLF back to
+        # LF and quietly repair a corrupted file rather than reveal it.
+        return path.read_bytes().decode("utf-8")
 
     def resolve_state(self, traj_id: str | None, ref: str) -> tuple[str, str]:
         """Resolve a state reference to (trajectory id, state id).

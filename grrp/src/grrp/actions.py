@@ -81,7 +81,28 @@ def initialise(root: Path, key_name: str = "self") -> tuple[Repo, list[Path]]:
         },
     )
     repo.trajectories_dir.mkdir(exist_ok=True)
-    return repo, [repo.profile_path, repo.grrp_dir / ".gitignore"]
+    written = [repo.profile_path, repo.grrp_dir / ".gitignore"]
+
+    # A state's identifier is the hash of its content bytes. Git rewriting line
+    # endings on checkout would leave a file that no longer yields the
+    # identifier the record says it has -- silently, on someone else's machine,
+    # years later. So the record tells git to leave it alone.
+    attributes = root / ".gitattributes"
+    guard = (
+        "# A grrp record is bytes. Its identifiers are hashes of file contents,\n"
+        "# so git must not rewrite line endings anywhere inside it.\n"
+        "trajectories/** -text\n"
+        ".grrp/** -text\n"
+    )
+    if not attributes.is_file():
+        attributes.write_text(guard, encoding="utf-8")
+        written.append(attributes)
+    elif "trajectories/** -text" not in attributes.read_text(encoding="utf-8"):
+        with attributes.open("a", encoding="utf-8") as handle:
+            handle.write("\n" + guard)
+        written.append(attributes)
+
+    return repo, written
 
 
 def open_trajectory(repo: Repo, question: str, title: str | None = None) -> tuple[str, list[Path]]:

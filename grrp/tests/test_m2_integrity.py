@@ -214,3 +214,43 @@ def test_redaction_warns_that_git_history_still_holds_the_content(trajectory):
     output = workspace.run("redact", sid(state), "--ground", "personal_data", "--yes").output
     assert "earlier git commits still contain the removed text" in output
     assert "beyond reach" in output
+
+
+# --- a record must survive a clone on another machine ------------------------
+
+def test_content_that_no_longer_yields_its_identifier_is_detected(trajectory):
+    """The identifier is the hash of the bytes on disk, so anyone holding the
+    file can check it without this tool. Verifying it is what makes that claim
+    true rather than merely stated -- and line endings rewritten in transit are
+    the way it silently stops being true."""
+    workspace, traj_id = trajectory
+    workspace.run("claim", traj_id, "-m", "A position.")
+    state = views.current_states(workspace.repo, traj_id)[0]
+
+    path = workspace.repo.state_path(traj_id, state)
+    path.write_bytes(path.read_bytes().replace(b"\n", b"\r\n"))
+
+    result = workspace.run("check", expect_ok=False)
+    assert result.exit_code == 1
+    assert "does not yield its identifier" in result.output
+    assert "line endings" in result.output
+
+
+def test_a_record_tells_git_not_to_rewrite_it(workspace):
+    attributes = (workspace.repo.root / ".gitattributes").read_text(encoding="utf-8")
+    assert "trajectories/** -text" in attributes
+    assert ".grrp/** -text" in attributes
+
+
+def test_an_existing_gitattributes_is_appended_to_rather_than_replaced(tmp_path):
+    from grrp import actions
+
+    root = tmp_path / "existing"
+    root.mkdir()
+    (root / ".gitattributes").write_text("*.psd binary\n", encoding="utf-8")
+
+    actions.initialise(root)
+
+    attributes = (root / ".gitattributes").read_text(encoding="utf-8")
+    assert "*.psd binary" in attributes, "what was there is kept"
+    assert "trajectories/** -text" in attributes
