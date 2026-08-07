@@ -127,6 +127,25 @@ def _check_trajectory(repo: Repo, traj_id: str, report: Report) -> None:
                     "specific identified state, never a project or a document as a whole."
                 )
 
+        for entry in record.get("contributions") or []:
+            if not entry.get("party") or not entry.get("role"):
+                report.fail(
+                    f"{traj_id}/{label}: a contribution records a party and a role. "
+                    "Neither is optional where more than one party is present."
+                )
+            elif not str(entry["role"]).startswith("credit:"):
+                report.note(
+                    f"{traj_id}/{label}: role {entry['role']!r} is not drawn from the bound "
+                    "contributor vocabulary"
+                )
+
+        for link in record.get("absorption") or []:
+            if not link.get("state") or not link.get("party"):
+                report.fail(
+                    f"{traj_id}/{label}: an absorption link names the state content was taken "
+                    "from and the party who produced it."
+                )
+
         for parent in record.get("parents") or []:
             if parent not in by_id:
                 report.fail(f"{traj_id}/{label}: parent {canonical.short(parent)} is missing")
@@ -163,6 +182,14 @@ def _check_trajectory(repo: Repo, traj_id: str, report: Report) -> None:
             f"{traj_id}: {len(proposals)} act(s) proposed and not yet registered. "
             "Nothing proposed is in the log."
         )
+
+    for identifier, disputes in views_module().contested_attributions(repo, traj_id).items():
+        if identifier in by_id:
+            report.note(
+                f"{traj_id}/{canonical.short(identifier)}: its attribution is contested by "
+                f"{len(disputes)} further act(s). Both positions stand; nothing here decides "
+                "between them."
+            )
 
     withdrawn = views_module().withdrawn_attestations(repo, traj_id)
     for identifier in sorted(withdrawn):

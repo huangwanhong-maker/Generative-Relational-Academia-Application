@@ -31,6 +31,7 @@ from .store import Repo
 SUPERSEDING_ACTS = frozenset({"transformation"})
 POSITION_ACTS = frozenset({"claim", "transformation"})
 RETRACTS = "cito:retracts"
+DISPUTES = "cito:disputes"
 
 
 def opening_state(repo: Repo, traj_id: str) -> str | None:
@@ -204,6 +205,37 @@ def absorptions(records: list[dict]) -> list[dict]:
         for link in record.get("absorption") or []:
             out.append({**link, "into": record["id"]})
     return out
+
+
+def producer_of(repo: Repo, state_id: str) -> tuple[str, dict] | None:
+    """The trajectory and transition that produced a state, wherever it lives.
+
+    Used when content is absorbed: the party credited is the one who produced
+    the state it came from, so nobody has to look a key up and type it.
+    """
+    for traj_id in repo.trajectory_ids():
+        for record in repo.transitions(traj_id):
+            if record.get("posterior_state") == state_id:
+                return traj_id, record
+        for record in repo.proposals(traj_id):
+            if record.get("posterior_state") == state_id:
+                return traj_id, record
+    return None
+
+
+def contested_attributions(repo: Repo, traj_id: str) -> dict[str, list[dict]]:
+    """Transitions whose attribution a party holds to be wrong.
+
+    The protocol supplies no procedure for resolving such a dispute and no
+    party empowered to resolve it.  What the record contributes is that both
+    positions are visible, with their dates.
+    """
+    disputes: dict[str, list[dict]] = {}
+    for record in repo.transitions(traj_id):
+        if record.get("act") == "challenge" and record.get("relation") == DISPUTES:
+            for parent in record.get("parents") or []:
+                disputes.setdefault(parent, []).append(record)
+    return disputes
 
 
 def redactions(repo: Repo, traj_id: str) -> dict[str, dict]:

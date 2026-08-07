@@ -53,3 +53,9 @@ def workspace(tmp_path: Path) -> Workspace:
 def trajectory(workspace: Workspace) -> tuple[Workspace, str]:
     workspace.run("new", "Is trust a property between individuals?", "--title", "trust")
     return workspace, workspace.repo.trajectory_ids()[0]
+
+
+@pytest.fixture()
+def workspace_key(workspace) -> str:
+    """The local name of the acting party's key."""
+    return "self"

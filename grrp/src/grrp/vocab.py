@@ -75,6 +75,7 @@ RELATIONS = {
     "relates": "cito:citesAsRelated",
     "supportedBy": "cito:obtainsSupportFrom",
     "usesDataFrom": "cito:usesDataFrom",
+    "disputes": "cito:disputes",
 }
 
 #: Relations named in the design for which CiTO has no counterpart.  They are

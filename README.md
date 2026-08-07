@@ -9,8 +9,8 @@ protocol, and a reference tool, for keeping that record.
 
 **Stage 0 — design and standardisation.** Four papers are drafted and the protocol is specified as
 **GRRP v0.1**, which has **no deployment history and no evidence of use** — every requirement in it is
-a proposal about what such use would need. The reference tool [`grrp`](grrp/) is built to the
-**personal tier** and has not yet been used on real work.
+a proposal about what such use would need. The reference tool [`grrp`](grrp/) is built through the
+**group tier** — attestation, attribution and absorption — and has not yet been used on real work.
 
 ---
 
@@ -341,7 +341,8 @@ grrp release && grrp export <release> -o paper.md
 | **M1** personal tier — five acts, append-only log, derived views, `open`, `show`, `export` | **built — this is the ship point** |
 | **M2** full act vocabulary, `check` over the whole chain, separable content, `redact` | **built** |
 | **M3a** group tier — keypairs, signatures, `register` with performer ≠ registrar | **built** |
-| **M3b–c** CRediT attribution, absorption links, disclosure grounds | not built |
+| **M3b** CRediT attribution, absorption links, contested attribution, synthesis | **built** |
+| **M3c** disclosure classes, grounds, monotone release | not built |
 | **M4** open tier — `bundle`/`continue`, profile declaration, deposit, redaction notices | not built |
 
 The acceptance tests are written against the constraints rather than the features, and the three that

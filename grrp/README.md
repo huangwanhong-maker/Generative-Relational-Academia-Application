@@ -7,8 +7,9 @@ where the two differ.**
 A command-line tool that records the trajectory of an inquiry as **typed transitions** in an ordinary
 git repository, in plain text, **with no server, no account, and no network**.
 
-**Status: M0–M2 and M3a.** All eight acts, redaction, and attestation by a second party. Attribution,
-absorption, disclosure grounds, bundling and continuation are M3b–M4 and are not built.
+**Status: M0–M2, M3a, M3b.** All eight acts, redaction, attestation by a second party,
+attribution and absorption. Disclosure grounds, bundling and continuation are M3c–M4 and are not
+built.
 
 ---
 
@@ -49,6 +50,27 @@ grrp release               # publishes, enumerating objections that still stand
 grrp export <release> -o paper.md
 grrp check                 # verify the record, and this tool against the protocol
 ```
+
+### Credit
+
+```bash
+grrp claim -m "…" --contributor bo=Methodology     # CRediT roles, attached to the act
+grrp transform -m "…" --from <state>               # content you took, credited to its producer
+grrp transform --with <state> -m "…"               # a synthesis drawing on several branches
+grrp contest <tx> -m "…"                           # this attribution is wrong
+```
+
+Attribution attaches to **an act**, not to a finished work. A contributor statement says a person
+contributed to a paper; this says which change in the content of a claim a person produced.
+
+An absorption link confers **attribution and no power to prevent, condition or reverse the use**.
+Rights to exclude, multiplied across many small contributions, produce the fragmentation in which
+downstream work needs so many permissions that it does not occur. A party who does not want their
+state absorbed has one instrument, and it is the disclosure class of that state.
+
+`grrp contest` records that an attribution is wrong. Nothing is deleted or altered, and **no party is
+empowered to settle it** — what the record contributes is that both positions are visible with their
+dates.
 
 ### Two parties
 

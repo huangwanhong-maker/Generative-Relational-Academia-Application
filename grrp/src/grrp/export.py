@@ -50,12 +50,23 @@ def render_release(repo: Repo, traj_id: str, release: dict) -> str:
     )
     lines.append("")
 
-    if not release.get("attested", False):
+    # Derived, never stored: a flag written when the release was proposed would
+    # still say "unattested" after the release itself had been registered.
+    attested = [r for r in chain if (r.get("registration") or {}).get("attested")]
+    unattested = [r for r in chain if not (r.get("registration") or {}).get("attested")]
+    if chain and not attested:
         lines.append(
             "> **Unattested.** Every transition in this record was registered by the "
             "party who performed it. A record registered by one party alone carries "
             "utility to its author and no evidential weight, and this document does "
             "not claim otherwise."
+        )
+        lines.append("")
+    elif unattested:
+        lines.append(
+            "> **Partly unattested.** Some transitions in this lineage were registered "
+            "by the party who performed them, and carry no evidential weight. Each is "
+            "marked in the lineage below."
         )
         lines.append("")
 

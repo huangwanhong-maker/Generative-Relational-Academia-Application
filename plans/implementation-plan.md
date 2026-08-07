@@ -23,12 +23,12 @@ a builder needs, and cites the requirement behind each item so a disputed choice
 | **Gate** Use it on real work for two weeks | ⬜ **deferred by decision** | 2 weeks |
 | **M2** Integrity — full act vocabulary, chain verification, redaction | ✅ done | 3–4 days |
 | **M3a** Group tier — keys, signatures, attestation | ✅ done | 3 days |
-| **M3b** Attribution and absorption | ⬜ | 2 days |
+| **M3b** Attribution and absorption | ✅ done | 2 days |
 | **M3c** Disclosure classes, grounds, monotone release | ⬜ | 3 days |
 | **M4** Open tier — bundle, continue, profile, deposit | ⬜ | 1 week |
 | **M5** Conformance suite | ⬜ | 3–4 days |
 
-76 tests pass; 2 are skipped — one named for M4, one platform-specific.
+93 tests pass; 2 are skipped — one named for M4, one platform-specific.
 Acceptance tests 1–7 pass; test 8 (bundle here, continue there) awaits M4.
 
 ---
@@ -239,17 +239,32 @@ transitions** *(P-II Claim 13.4)*.
 **Decided:** `GRRP_KEY` selects which local key acts, for a machine two parties share and for the
 tests, which need a second party to exercise registration at all. One key is the ordinary case.
 
-### Attribution and absorption
-- [ ] `grrp attribute <tx> --party <key> --role <credit-role>` — CRediT, bound not restated *(C12)*
-- [ ] `grrp absorb <tx> --from <state> --party <key>` — the link records the state, **the party who
-      produced it**, and the transition that took the content *(P-IV Req. 9.3)*
-- [ ] Absorption links **presented alongside the transition wherever it is displayed**
-- [ ] **No veto.** No mechanism by which the named party can block, condition or reverse the use.
-      A party who does not want their state absorbed has **one instrument: its disclosure class**
-      *(P-IV Req. 9.4)*
-- [ ] `grrp challenge` on an attribution — contested attribution is a record, not a matter to
-      adjudicate; **no party is empowered to resolve it** *(P-IV Req. 9.5)*
-- [ ] **No measure of the influence of an absorbed state** *(C6)*
+### Attribution and absorption ✅
+- [x] `--contributor name=Role` on every act — CRediT identifiers stored, **never display labels**,
+      because a record holding the word "Methodology" is uninterpretable once a second vocabulary
+      uses it differently *(C12 · P-IV Req. 7.3)*
+- [x] `--from <state>` on every act — the link records the state, **the party who produced it**
+      (looked up from the record, so nobody types a key), and the transition that took the content
+      *(P-IV Req. 9.3)*
+- [x] `grrp attribute <proposal>` — adds contributors or absorption **to a proposal**, before anyone
+      has registered it. A recorded transition is never edited, and attempting it **refuses with C3
+      and points at `grrp contest`** *(C3)*
+- [x] Absorption links **presented alongside the transition wherever it is displayed** (`export`)
+- [x] **No veto.** No `approve`, `deny`, `block`, `veto`, `permit` or `consent` anywhere in the
+      command surface, and a test that keeps it that way. A party who does not want their state
+      absorbed has **one instrument: its disclosure class** *(P-IV Req. 9.4)*
+- [x] `grrp contest <tx>` — a challenge that **disputes** (`cito:disputes`), naming the transition
+      among its parents. Nothing deleted or altered; **no party is empowered to resolve it**
+      *(P-IV Req. 9.5)*
+- [x] **No measure of the influence of an absorbed state** *(C6)*
+- [x] `grrp transform --with <state>` — a **synthesis**: a state its performer composed from what
+      several branches reached. It does **not** close them, and nothing is combined by rule
+      *(P-IV Def. 10.4, Req. 10.5)*
+
+**Found and fixed in the course of it:** the release record stored an `attested` flag captured when
+the release was still a proposal, so an exported document went on saying "unattested" after the
+release had been registered. Now derived at export time from the log — the stored-derived-value
+mistake, in miniature *(P-IV Req. 4.4, 5.3)*.
 
 ### Disclosure
 - [ ] `grrp disclose <tx> --class <c> --ground <g> [--release-at <date>]`

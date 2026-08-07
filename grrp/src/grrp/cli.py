@@ -66,6 +66,85 @@ def command(*args, **kwargs):
     return decorator
 
 
+CONTRIBUTOR_OPTION = typer.Option(
+    None,
+    "--contributor",
+    help="Another party's part in this act: name=Role. Repeatable. CRediT roles.",
+)
+ABSORB_OPTION = typer.Option(
+    None,
+    "--from",
+    help="A state whose content you took. Repeatable. Credits whoever produced it.",
+)
+WITH_OPTION = typer.Option(
+    None,
+    "--with",
+    help="Another state this composes from, making it a synthesis. Repeatable.",
+)
+
+
+def _resolve_party(repo: Repo, ref: str) -> str:
+    """A party, by local name or by key."""
+    if ref.startswith(keys.PREFIX):
+        return ref
+    known = keys.known(repo.keys_dir)
+    if ref in known:
+        return known[ref]
+    raise errors.GrrpError(
+        f"no party named {ref!r}. Known: {', '.join(known) or 'none'}. "
+        "Add one with: grrp key add <name> <key:ed25519:...>"
+    )
+
+
+def _contributions(repo: Repo, values: list[str] | None) -> list[dict]:
+    """Parties and their CRediT roles in this act.
+
+    Attribution attaches to an act rather than to a finished work.  A
+    contributor statement says a person contributed to a paper; this says which
+    change in the content of a claim a person produced.
+    """
+    entries: list[dict] = []
+    for value in values or []:
+        if "=" not in value:
+            raise errors.GrrpError(
+                f"say --contributor name=Role, not {value!r}. "
+                f"Roles: {', '.join(vocab.CREDIT_ROLES)}"
+            )
+        name, role = value.split("=", 1)
+        try:
+            entries.append(
+                {"party": _resolve_party(repo, name.strip()), "role": vocab.resolve_role(role)}
+            )
+        except ValueError as error:
+            raise errors.GrrpError(str(error)) from None
+    return entries
+
+
+def _absorptions(repo: Repo, refs: list[str] | None) -> list[dict]:
+    """Content taken from a state elsewhere, credited to whoever produced it.
+
+    The link confers attribution and no power to prevent, condition or reverse
+    the use.  Rights to exclude, multiplied across many small contributions,
+    produce the fragmentation in which downstream work needs so many
+    permissions that it does not occur.
+
+    A party who does not wish their state absorbed has one instrument, and it
+    is the disclosure class of that state: absorption operates on what has been
+    disclosed to the absorbing party.
+    """
+    links: list[dict] = []
+    for ref in refs or []:
+        _, state_id = repo.resolve_state(None, ref)
+        found = views.producer_of(repo, state_id)
+        if not found:
+            raise errors.GrrpError(
+                f"no transition produced {canonical.short(state_id)}, so there is nobody to credit"
+            )
+        links.append({"state": state_id, "party": found[1]["performer"]})
+    return links
+
+
+
 def _echo(message: str = "") -> None:
     typer.echo(message)
 
@@ -92,6 +171,7 @@ PROMPTS = {
     "connect": "Why does this connection matter to the state you are connecting from?",
     "verify": "What was the outcome? Say what you checked and what came of it.",
     "withdraw": "Why are you withdrawing this registration?",
+    "contest": "What is wrong with the attribution? Say what the record should say.",
     "new": "What are you actually trying to find out?",
 }
 
@@ -310,6 +390,8 @@ def claim(
     ref: str = typer.Argument(None, help="Trajectory, or the state you are answering."),
     message: str = typer.Option(None, "-m", "--message", help="The position you are taking."),
     file: Path = typer.Option(None, "--file", help="Read the position from a file."),
+    contributor: list[str] = CONTRIBUTOR_OPTION,
+    absorb: list[str] = ABSORB_OPTION,
     target: str = typer.Option("hypothesis", help=f"One of: {', '.join(vocab.TARGETS)}."),
     trigger: str = typer.Option("self", help=f"One of: {', '.join(vocab.TRIGGERS)}."),
 ) -> None:
@@ -327,6 +409,8 @@ def claim(
         trajectory=traj_id,
         act="claim",
         performer=repo.party(),
+        contributions=_contributions(repo, contributor),
+        absorption=_absorptions(repo, absorb),
         parents=_parents_for(repo, traj_id, prior),
         prior_state=prior,
         posterior_state=state_id,
@@ -342,6 +426,8 @@ def challenge(
     state: str = typer.Argument(None, help="The state you are objecting to. Defaults to the live position."),
     message: str = typer.Option(None, "-m", "--message", help="The objection."),
     file: Path = typer.Option(None, "--file", help="Read the objection from a file."),
+    contributor: list[str] = CONTRIBUTOR_OPTION,
+    absorb: list[str] = ABSORB_OPTION,
     traj: str = TRAJ_OPTION,
     target: str = typer.Option("assumption", help=f"One of: {', '.join(vocab.TARGETS)}."),
     trigger: str = typer.Option("objection", help=f"One of: {', '.join(vocab.TRIGGERS)}."),
@@ -371,6 +457,8 @@ def challenge(
         trajectory=traj_id,
         act="challenge",
         performer=repo.party(),
+        contributions=_contributions(repo, contributor),
+        absorption=_absorptions(repo, absorb),
         parents=_parents_for(repo, traj_id, prior),
         prior_state=prior,
         posterior_state=state_id,
@@ -389,6 +477,9 @@ def transform(
     state: str = typer.Argument(None, help="The state you are changing. Defaults to the live position."),
     message: str = typer.Option(None, "-m", "--message", help="What it becomes."),
     file: Path = typer.Option(None, "--file", help="Read the new state from a file."),
+    contributor: list[str] = CONTRIBUTOR_OPTION,
+    absorb: list[str] = ABSORB_OPTION,
+    with_: list[str] = WITH_OPTION,
     relation: str = typer.Option(
         "modifies", help=f"One of: {', '.join(sorted(vocab.RELATIONS))}."
     ),
@@ -422,10 +513,22 @@ def transform(
         if answered_record["id"] not in parents:
             parents.append(answered_record["id"])
 
+    # A transformation drawing on several branches is a synthesis: a state its
+    # performer composed from what those branches reached. It does not close
+    # them. Nothing is combined by rule, because two revisions of a concept do
+    # not compose and no test decides the result.
+    for reference in with_ or []:
+        _, other_state = repo.resolve_state(traj_id, reference)
+        for candidate in repo.transitions(traj_id):
+            if candidate.get("posterior_state") == other_state and candidate["id"] not in parents:
+                parents.append(candidate["id"])
+
     record = store.new_transition(
         trajectory=traj_id,
         act="transformation",
         performer=repo.party(),
+        contributions=_contributions(repo, contributor),
+        absorption=_absorptions(repo, absorb),
         parents=parents,
         prior_state=prior,
         posterior_state=state_id,
@@ -435,6 +538,8 @@ def transform(
         disposition="accepted",
     )
     _record(repo, traj_id, record, "transform")
+    if with_:
+        _echo(f"  synthesis of {len(parents)} parents. The branches it draws on continue.")
 
 
 @command()
@@ -442,6 +547,8 @@ def decide(
     state: str = typer.Argument(None, help="The state you are deciding about. Defaults to the live position."),
     message: str = typer.Option(None, "-m", "--message", help="The reason."),
     file: Path = typer.Option(None, "--file", help="Read the reason from a file."),
+    contributor: list[str] = CONTRIBUTOR_OPTION,
+    absorb: list[str] = ABSORB_OPTION,
     abandon: bool = typer.Option(
         False, "--abandon", help="Retire this direction rather than continue it."
     ),
@@ -476,6 +583,8 @@ def decide(
         trajectory=traj_id,
         act="decision",
         performer=repo.party(),
+        contributions=_contributions(repo, contributor),
+        absorption=_absorptions(repo, absorb),
         parents=parents,
         prior_state=prior,
         posterior_state=state_id,
@@ -525,7 +634,6 @@ def release(
         "state": state_id,
         "time": record["performed"],
         "registrant": record["performer"],
-        "attested": (record["registration"] or {}).get("attested", False),
         # Disclosure classes arrive with the group tier. At the personal tier
         # there is one party and therefore no class to declare.
         "class": None,
@@ -557,6 +665,8 @@ def connect(
     state: str = typer.Argument(None, help="The state you are connecting from. Defaults to the live position."),
     message: str = typer.Option(None, "-m", "--message", help="Why the connection matters."),
     file: Path = typer.Option(None, "--file", help="Read the note from a file."),
+    contributor: list[str] = CONTRIBUTOR_OPTION,
+    absorb: list[str] = ABSORB_OPTION,
     relation: str = typer.Option("relates", help=f"One of: {', '.join(sorted(vocab.RELATIONS))}."),
     traj: str = TRAJ_OPTION,
     trigger: str = typer.Option("literature", help=f"One of: {', '.join(vocab.TRIGGERS)}."),
@@ -597,6 +707,8 @@ def connect(
         trajectory=traj_id,
         act="connection",
         performer=repo.party(),
+        contributions=_contributions(repo, contributor),
+        absorption=_absorptions(repo, absorb),
         parents=parents,
         prior_state=prior,
         posterior_state=state_id,
@@ -615,6 +727,8 @@ def verify(
     state: str = typer.Argument(None, help="The state you checked. Defaults to the live position."),
     message: str = typer.Option(None, "-m", "--message", help="The outcome."),
     file: Path = typer.Option(None, "--file", help="Read the outcome from a file."),
+    contributor: list[str] = CONTRIBUTOR_OPTION,
+    absorb: list[str] = ABSORB_OPTION,
     failed: bool = typer.Option(False, "--failed", help="The check did not come out as predicted."),
     traj: str = TRAJ_OPTION,
     trigger: str = typer.Option("experiment", help=f"One of: {', '.join(vocab.TRIGGERS)}."),
@@ -636,6 +750,8 @@ def verify(
         trajectory=traj_id,
         act="verification",
         performer=repo.party(),
+        contributions=_contributions(repo, contributor),
+        absorption=_absorptions(repo, absorb),
         parents=_parents_for(repo, traj_id, prior),
         prior_state=prior,
         posterior_state=state_id,
@@ -845,6 +961,108 @@ def register(
     _echo(f"  performed by  {canonical.short(record['performer'], 16)}")
     _echo(f"  registered by {canonical.short(registrar, 16)}  (attested)")
     _commit(repo, [path], f"register {canonical.short(record['id'])}")
+
+
+@command()
+def attribute(
+    proposal: str = typer.Argument(..., help="The proposed act to attribute."),
+    contributor: list[str] = CONTRIBUTOR_OPTION,
+    absorb: list[str] = ABSORB_OPTION,
+    traj: str = TRAJ_OPTION,
+) -> None:
+    """Add contributors or absorbed content to an act you have proposed.
+
+    Purpose (for you): so that the colleague whose objection reshaped this, or
+    the line of work you took the method from, is named in the record rather
+    than in your memory.
+
+    This works on a proposal, before anyone has registered it. A recorded
+    transition is never edited: if an attribution in the log is wrong, that is
+    contested by a further act, with 'grrp contest'.
+    """
+    repo = _repo()
+    traj_id = repo.resolve_trajectory(traj) if traj else None
+
+    try:
+        traj_id, record = repo.resolve_proposal(traj_id, proposal)
+    except errors.UnknownReference:
+        try:
+            traj_id, recorded = repo.resolve_transition(traj_id, proposal)
+        except errors.UnknownReference:
+            raise errors.GrrpError(f"nothing proposed or recorded matches {proposal!r}") from None
+        raise errors.ConstraintViolation(
+            "C3",
+            f"{canonical.short(recorded['id'])} is already in the log, and a recorded "
+            "transition is never edited. If its attribution is wrong, contest it:\n"
+            f"  grrp contest {canonical.short(recorded['id'])} -m \"<what is wrong>\"",
+        ) from None
+
+    additions = _contributions(repo, contributor)
+    links = _absorptions(repo, absorb)
+    if not additions and not links:
+        raise errors.GrrpError("nothing to add: pass --contributor name=Role or --from <state>")
+
+    updated = dict(record)
+    updated["contributions"] = [*(record.get("contributions") or []), *additions]
+    updated["absorption"] = [*(record.get("absorption") or []), *links]
+    updated["id"] = canonical.transition_id(updated)
+
+    repo.proposal_path(traj_id, record["id"]).unlink(missing_ok=True)
+    path = repo.write_proposal(traj_id, updated)
+
+    _echo(f"attributed {canonical.short(updated['id'])}")
+    if updated["id"] != record["id"]:
+        _echo(f"  the proposal's identifier changed from {canonical.short(record['id'])},")
+        _echo("  because contributions and absorption are part of what it asserts.")
+    for entry in additions:
+        _echo(f"  contributor  {canonical.short(entry['party'], 16)}  {entry['role']}")
+    for link in links:
+        _echo(
+            f"  absorbed     {canonical.short(link['state'])} "
+            f"by {canonical.short(link['party'], 16)}"
+        )
+    if links:
+        _echo("  attribution, and no power to prevent, condition or reverse the use.")
+    _commit(repo, [path], f"attribute {canonical.short(updated['id'])}")
+
+
+@command()
+def contest(
+    transition: str = typer.Argument(..., help="The transition whose attribution is wrong."),
+    message: str = typer.Option(None, "-m", "--message", help="What is wrong with it."),
+    file: Path = typer.Option(None, "--file", help="Read the ground from a file."),
+    traj: str = TRAJ_OPTION,
+) -> None:
+    """Record that an attribution is wrong, or that content was taken without a link.
+
+    Purpose (for you): so that a record naming the wrong party, or omitting
+    yours, does not stand unanswered under your nose.
+
+    Nothing is deleted or altered. The protocol supplies no procedure for
+    settling this and no party empowered to settle it: what the record
+    contributes is that both positions are visible, with their dates.
+    """
+    repo = _repo()
+    traj_id = repo.resolve_trajectory(traj) if traj else None
+    traj_id, target = repo.resolve_transition(traj_id, transition)
+    text = _message(message, file, "contest")
+
+    state_id, _ = repo.write_state(traj_id, text)
+    record = store.new_transition(
+        trajectory=traj_id,
+        act="challenge",
+        performer=repo.party(),
+        parents=[target["id"]],
+        prior_state=target.get("posterior_state") or target.get("prior_state"),
+        posterior_state=state_id,
+        target="artefact",
+        relation=vocab.RELATIONS["disputes"],
+        trigger="self",
+        disposition="unresolved",
+    )
+    _record(repo, traj_id, record, "contest ")
+    _echo(f"  {canonical.short(target['id'])} is unchanged, with this linked to it.")
+    _echo("  Both stand in the record. Nobody here decides between them.")
 
 
 @command()
