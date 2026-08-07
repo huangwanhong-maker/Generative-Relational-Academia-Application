@@ -1,8 +1,0 @@
-# The local event plane is never exported and never published.
-events/
-# Private keys never leave this machine.
-keys/*.key
-# Sealed content is disclosed to nobody until you open it.
-sealed/
-# Bundles obtained from elsewhere are kept here, not republished.
-received/
