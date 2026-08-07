@@ -290,6 +290,21 @@ once a second vocabulary uses the same word differently. Three relations the des
 counterpart (`generalises`, `specialises`, `transfers`); they are available as `local:` values, are
 flagged as local, and need a charter to define them.
 
+## A walkthrough
+
+```bash
+bash examples/walkthrough.sh        # all four phases
+bash examples/walkthrough.sh 1      # just the first
+```
+
+Works the philosophy case from the specification: a claim about trust, an objection that it omits
+institutional power, a transformation accepting it, a second objection that is never resolved, a
+divergence, and a release enumerating the objection still standing. Then a failed check and an
+abandoned direction, a second party registering, and finally withholding on a ground and leaving
+with the record.
+
+It builds everything under `./grrp-walkthrough` and touches nothing else.
+
 ## Tests
 
 ```bash

@@ -29,7 +29,9 @@ a builder needs, and cites the requirement behind each item so a disputed choice
 | **UI** A local page — Level 3, outside conformance | ✅ done | 1 day |
 | **M5** Conformance suite | ⬜ | 3–4 days |
 
-170 tests pass; 1 is skipped, and it is platform-specific.
+172 tests pass; 1 is skipped, and it is platform-specific.
+A walkthrough of the whole thing is at [`grrp/examples/walkthrough.sh`](../grrp/examples/walkthrough.sh);
+writing it found two bugs in `bundle` that argument had not.
 **All eight acceptance tests pass.**
 
 ---
