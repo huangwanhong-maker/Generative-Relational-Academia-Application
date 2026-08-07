@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from . import canonical, vocab
+from . import canonical, keys, vocab
 from .store import Repo
 
 
@@ -131,11 +131,46 @@ def _check_trajectory(repo: Repo, traj_id: str, report: Report) -> None:
             if parent not in by_id:
                 report.fail(f"{traj_id}/{label}: parent {canonical.short(parent)} is missing")
 
-        if (record.get("registration") or {}).get("attested"):
+        registration = record.get("registration") or {}
+        if registration.get("attested"):
             attested += 1
+            registrar = registration.get("registrar")
+            if registrar == record.get("performer"):
+                report.fail(
+                    f"{traj_id}/{label}: registered by the party who performed it, but marked "
+                    "attested. Credibility follows from registration by a party who did not "
+                    "coordinate with the performer."
+                )
+            signature = registration.get("signature")
+            if not signature:
+                report.fail(f"{traj_id}/{label}: attested with no signature")
+            elif registrar:
+                data = canonical.signing_input(
+                    record["id"], registrar, registration.get("time", "")
+                )
+                if not keys.verify(registrar, data, signature):
+                    report.fail(
+                        f"{traj_id}/{label}: the registration signature does not verify. "
+                        "The record does not say what it appears to say."
+                    )
 
     _check_acyclic(traj_id, records, by_id, report)
     _check_content(repo, traj_id, records, report)
+
+    proposals = repo.proposals(traj_id)
+    if proposals:
+        report.note(
+            f"{traj_id}: {len(proposals)} act(s) proposed and not yet registered. "
+            "Nothing proposed is in the log."
+        )
+
+    withdrawn = views_module().withdrawn_attestations(repo, traj_id)
+    for identifier in sorted(withdrawn):
+        if identifier in by_id:
+            report.note(
+                f"{traj_id}/{canonical.short(identifier)}: its registrar has withdrawn the "
+                "attestation. Both the registration and the withdrawal remain in the log."
+            )
 
     if records and attested == 0:
         report.note(
@@ -143,6 +178,12 @@ def _check_trajectory(repo: Repo, traj_id: str, report: Report) -> None:
             "The record is unattested: useful to its author, and carrying no evidential "
             "weight. Credibility begins where a second party registers."
         )
+
+
+def views_module():
+    from . import views
+
+    return views
 
 
 def _check_content(repo: Repo, traj_id: str, records: list[dict], report: Report) -> None:

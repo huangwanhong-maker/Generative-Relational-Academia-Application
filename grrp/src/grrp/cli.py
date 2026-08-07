@@ -91,6 +91,7 @@ PROMPTS = {
     ),
     "connect": "Why does this connection matter to the state you are connecting from?",
     "verify": "What was the outcome? Say what you checked and what came of it.",
+    "withdraw": "Why are you withdrawing this registration?",
     "new": "What are you actually trying to find out?",
 }
 
@@ -128,19 +129,41 @@ def _commit(repo: Repo, paths: list[Path], summary: str) -> None:
 def _record(
     repo: Repo, traj_id: str, record: dict, note: str, extra: list[Path] | None = None
 ) -> None:
-    path = repo.append_transition(traj_id, record)
-    written = [path, *(extra or [])]
+    """Enter an act into the record, or propose it, according to the tier.
+
+    At the personal tier there is one party, so an act is written directly and
+    marked unattested: useful to its author, and evidence to nobody.
+
+    At the group tier a party cannot register their own act, so what they
+    perform is a proposal until another party takes responsibility for it.
+    That is the whole of where a record's credibility comes from -- not from
+    the content, its length or its detail, but from being registered by parties
+    who did not coordinate.
+    """
+    written = [*(extra or [])]
     for state_id in (record.get("prior_state"), record.get("posterior_state")):
         if state_id:
             state_path = repo.state_path(traj_id, state_id)
             if state_path.is_file():
                 written.append(state_path)
-    _echo(f"{note}  {canonical.short(record['id'])}")
-    if record.get("posterior_state"):
-        _echo(f"  state    {canonical.short(record['posterior_state'])}")
-    if not (record.get("registration") or {}).get("attested"):
+
+    if repo.tier() == "personal":
+        written.insert(0, repo.append_transition(traj_id, record))
+        _echo(f"{note}  {canonical.short(record['id'])}")
+        if record.get("posterior_state"):
+            _echo(f"  state    {canonical.short(record['posterior_state'])}")
         _echo("  unattested (you registered your own act)")
-    _commit(repo, written, f"{record['act']} {canonical.short(record['id'])}")
+    else:
+        record = dict(record)
+        record["registration"] = None
+        written.insert(0, repo.write_proposal(traj_id, record))
+        _echo(f"{note}  {canonical.short(record['id'])}  (proposed)")
+        if record.get("posterior_state"):
+            _echo(f"  state    {canonical.short(record['posterior_state'])}")
+        _echo("  not yet in the log. Another party registers it:")
+        _echo(f"    grrp register {canonical.short(record['id'])}")
+
+    _commit(repo, written, f"{record.get('act')} {canonical.short(record['id'])}")
 
 
 # --------------------------------------------------------------------------- #
@@ -679,6 +702,197 @@ def redact(
     _echo("  Note: earlier git commits still contain the removed text. Removing it")
     _echo("  from history is a separate operation on the substrate (git filter-repo),")
     _echo("  and any copy already obtained by another party is beyond reach of both.")
+
+
+# --------------------------------------------------------------------------- #
+# attestation
+# --------------------------------------------------------------------------- #
+
+
+@command(name="key")
+def key_cmd(
+    action: str = typer.Argument("list", help="list, add, or mine."),
+    name: str = typer.Argument(None, help="A local name for the party."),
+    party: str = typer.Argument(None, help="Their key: key:ed25519:…"),
+) -> None:
+    """Know another party's key, so they can register your transitions.
+
+    Purpose (for you): a record you registered yourself is useful to you and is
+    evidence to nobody. Adding one colleague's key is what makes it evidence,
+    and it is the whole of the setup that takes.
+
+    Adding a key moves this record to the group tier, where you can no longer
+    register your own acts: what you perform becomes a proposal until someone
+    else takes responsibility for it.
+    """
+    repo = _repo()
+    if action == "mine":
+        _echo(repo.party())
+        _echo("")
+        _echo("Give this to whoever will register your transitions. They run:")
+        _echo(f"  grrp key add <a-name-for-you> {repo.party()}")
+        return
+
+    if action == "list":
+        for local, identifier in keys.known(repo.keys_dir).items():
+            mark = "  (you)" if identifier == repo.party() else ""
+            _echo(f"{local:<16} {identifier}{mark}")
+        _echo("")
+        _echo(f"tier  {repo.tier()}")
+        return
+
+    if action != "add":
+        raise errors.GrrpError("say: grrp key list | grrp key mine | grrp key add <name> <key>")
+    if not name or not party:
+        raise errors.GrrpError("grrp key add <name> <key:ed25519:…>")
+
+    try:
+        keys.add(repo.keys_dir, name, party)
+    except ValueError as error:
+        raise errors.GrrpError(str(error)) from None
+
+    _echo(f"added    {name}  {party}")
+    if party != repo.party() and repo.tier() == "personal":
+        repo.set_tier("group")
+        _echo("")
+        _echo("  tier is now group. Credibility begins here, and so does the rule that")
+        _echo("  you cannot register your own acts: what you perform is a proposal, and")
+        _echo(f"  {name} registers it. Registering is one action, and is meant to be.")
+    _commit(repo, [repo.keys_dir / f"{name}.pub", repo.profile_path], f"key add {name}")
+
+
+@command(name="pending")
+def pending_cmd(
+    traj: str = typer.Argument(None, help="Trajectory. Defaults to all of them."),
+) -> None:
+    """List acts proposed but not yet registered.
+
+    Purpose (for you): to see what is waiting on you, and what of yours is
+    waiting on someone else. Nothing here is in the log yet.
+    """
+    repo = _repo()
+    traj_ids = [repo.resolve_trajectory(traj)] if traj else repo.trajectory_ids()
+    me = repo.party()
+    anything = False
+    for traj_id in traj_ids:
+        proposals = repo.proposals(traj_id)
+        if not proposals:
+            continue
+        anything = True
+        _echo(f"{traj_id}")
+        for record in proposals:
+            mine = record.get("performer") == me
+            who = "yours, waiting on another party" if mine else "waiting on you"
+            _echo(
+                f"  {canonical.short(record['id'])}  {record.get('act'):<14} "
+                f"{record.get('performed')}  ({who})"
+            )
+            state_id = record.get("posterior_state")
+            if state_id:
+                _echo(f"      {_headline(repo, traj_id, state_id, width=84)}")
+        _echo()
+    if not anything:
+        _echo("nothing proposed.")
+
+
+@command()
+def register(
+    proposal: str = typer.Argument(..., help="The proposed act you are registering."),
+    traj: str = TRAJ_OPTION,
+) -> None:
+    """Take responsibility for another party's act, entering it in the log.
+
+    Purpose (for you): so that the record of work you were part of says so, and
+    so that your colleague's record is worth something to a reader who was not
+    there. It is one action, deliberately: the work falls on the party who
+    gains least from it.
+
+    What you assert is that this party performed this act at this time. Not
+    that it was an improvement, not that the claim is true, and not that you
+    understood it. Assessment of content lies outside the protocol.
+    """
+    repo = _repo()
+    traj_id = repo.resolve_trajectory(traj) if traj else None
+    traj_id, record = repo.resolve_proposal(traj_id, proposal)
+
+    registrar = repo.party()
+    if registrar == record.get("performer"):
+        raise errors.ConstraintViolation(
+            "C2",
+            "you cannot register your own act. Credibility follows from the "
+            "distribution of registrations across parties who did not coordinate, "
+            "and follows from no property of the record itself.\n"
+            f"Ask another party to run: grrp register {canonical.short(record['id'])}",
+        )
+
+    when = store.now()
+    signature = keys.sign(
+        repo.keys_dir,
+        canonical.signing_input(record["id"], registrar, when),
+        repo.key_name(),
+    )
+    record = dict(record)
+    record["registration"] = {
+        "registrar": registrar,
+        "time": when,
+        "attested": True,
+        "signature": signature,
+    }
+    path = repo.append_transition(traj_id, record)
+    repo.proposal_path(traj_id, record["id"]).unlink(missing_ok=True)
+
+    _echo(f"registered {canonical.short(record['id'])}  {record.get('act')}")
+    _echo(f"  performed by  {canonical.short(record['performer'], 16)}")
+    _echo(f"  registered by {canonical.short(registrar, 16)}  (attested)")
+    _commit(repo, [path], f"register {canonical.short(record['id'])}")
+
+
+@command()
+def withdraw(
+    transition: str = typer.Argument(..., help="The registered transition you are withdrawing."),
+    message: str = typer.Option(None, "-m", "--message", help="The ground of withdrawal."),
+    file: Path = typer.Option(None, "--file", help="Read the ground from a file."),
+    traj: str = TRAJ_OPTION,
+) -> None:
+    """Withdraw an attestation you made, by recording a further act.
+
+    Purpose (for you): so that a registration you have come to think
+    misdescribes what occurred does not stand in your name.
+
+    Nothing is deleted. A reader sees both the original registration and its
+    withdrawal, which is more informative than either a deletion or a silent
+    correction, and it places the disagreement in the record where a later
+    reader can weigh it.
+    """
+    repo = _repo()
+    traj_id = repo.resolve_trajectory(traj) if traj else None
+    traj_id, target = repo.resolve_transition(traj_id, transition)
+    registration = target.get("registration") or {}
+
+    if registration.get("registrar") != repo.party():
+        raise errors.GrrpError(
+            f"{canonical.short(target['id'])} was registered by "
+            f"{canonical.short(registration.get('registrar') or 'nobody', 16)}, not by you. "
+            "An attestation is withdrawn by the party who made it."
+        )
+
+    text = _message(message, file, "withdraw")
+    state_id, _ = repo.write_state(traj_id, text)
+    record = store.new_transition(
+        trajectory=traj_id,
+        act="challenge",
+        performer=repo.party(),
+        parents=[target["id"]],
+        prior_state=target.get("posterior_state") or target.get("prior_state"),
+        posterior_state=state_id,
+        target="artefact",
+        relation=vocab.RELATIONS["retracts"],
+        trigger="self",
+        disposition="unresolved",
+    )
+    _record(repo, traj_id, record, "withdraw")
+    _echo(f"  the registration of {canonical.short(target['id'])} stands in the log,")
+    _echo("  with this withdrawal linked to it. Neither is removed.")
 
 
 # --------------------------------------------------------------------------- #

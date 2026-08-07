@@ -248,9 +248,8 @@ def test_personal_tier_records_are_marked_unattested(trajectory):
 # test_m2_integrity.py.
 
 
-@pytest.mark.skip(reason="M3: registration by a distinct party is not implemented yet")
-def test_register_refuses_when_performer_and_registrar_are_identical():
-    ...
+# Test 7 (register refuses when performer and registrar are identical) is
+# implemented in test_m3_attestation.py.
 
 
 @pytest.mark.skip(reason="M4: bundle and continue are not implemented yet")

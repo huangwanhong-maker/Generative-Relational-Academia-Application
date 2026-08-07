@@ -7,10 +7,8 @@ where the two differ.**
 A command-line tool that records the trajectory of an inquiry as **typed transitions** in an ordinary
 git repository, in plain text, **with no server, no account, and no network**.
 
-**Status: M0 + M1 + M2.** Personal tier, all eight acts, and redaction. Useful alone, and carrying
-**no evidential weight** — every transition is registered by the party who performed it, and is
-marked unattested wherever it is shown or exported. Attestation, disclosure grounds, bundling and
-continuation are M3–M4 and are not built.
+**Status: M0–M2 and M3a.** All eight acts, redaction, and attestation by a second party. Attribution,
+absorption, disclosure grounds, bundling and continuation are M3b–M4 and are not built.
 
 ---
 
@@ -51,6 +49,36 @@ grrp release               # publishes, enumerating objections that still stand
 grrp export <release> -o paper.md
 grrp check                 # verify the record, and this tool against the protocol
 ```
+
+### Two parties
+
+A record you registered yourself is useful to you and is **evidence to nobody**. One colleague's key
+is what makes it evidence, and it is the whole of the setup that takes.
+
+```bash
+grrp key mine                      # hand this to them
+grrp key add bo key:ed25519:…      # they do the same with yours
+                                   # the record is now at the group tier
+
+grrp claim -m "Trust obtains between individuals."
+#   claim  a72fe32c349e  (proposed)
+#   not yet in the log. Another party registers it:
+#     grrp register a72fe32c349e
+
+grrp pending                       # what waits on you, and what of yours waits on them
+grrp register a72fe32c349e         # they run this; you cannot
+grrp withdraw <tx>                 # a registrar undoing their own attestation
+```
+
+At the group tier **you cannot register your own act**, so what you perform is a proposal until
+someone else takes responsibility for it. That is where a record's credibility comes from: not from
+its content, its length or its detail, but from being registered by parties who did not coordinate.
+
+`grrp register` refuses when the two keys are identical, and names the constraint. A withdrawal is
+itself an act, so it too must be registered by another party — the rule does not bend for the party
+undoing something.
+
+`GRRP_KEY=<name>` selects which local key acts, for a machine two parties share and for the tests.
 
 **You rarely need to name a state.** `challenge`, `transform`, `decide` and `release` default to the
 live position, which is what you almost always mean, and saves copying a hash out of one command into
@@ -168,9 +196,9 @@ The acceptance tests are written against the constraints, not the features:
 | 4 | editing anything under `transitions/` is detected by `grrp check` |
 | 5 | a disclosure change does not invalidate verification |
 | 6 | after `grrp redact`, the chain verifies, the graph is unchanged, and the redaction is recorded |
+| 7 | `grrp register` refuses when performer and registrar are identical |
 | — | acts default to the live position, and refuse rather than guess at a divergence |
 | — | omitting `-m` opens an editor; the prompt below the cut is never recorded |
-| 7 | *(M3)* `register` refuses when performer and registrar are identical — **skipped** |
 | 8 | *(M4)* `bundle` here, `continue` there, one graph and not two — **skipped** |
 
 Skipped tests are present and named, so what is not yet built is visible rather than absent.

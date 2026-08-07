@@ -224,6 +224,20 @@ def redactions(repo: Repo, traj_id: str) -> dict[str, dict]:
     }
 
 
+def withdrawn_attestations(repo: Repo, traj_id: str) -> set[str]:
+    """Registrations whose registrar has since withdrawn them.
+
+    Recorded as a further challenge that retracts, naming the registration
+    among its parents. Nothing is deleted, so a reader sees the original act
+    and its withdrawal together and can weigh the disagreement themselves.
+    """
+    withdrawn: set[str] = set()
+    for record in repo.transitions(traj_id):
+        if record.get("act") == "challenge" and record.get("relation") == RETRACTS:
+            withdrawn.update(record.get("parents") or [])
+    return withdrawn
+
+
 def transitions_only(records: list[dict]) -> list[dict]:
     """Transitions, with administrative operations filtered out."""
     return [r for r in records if r.get("kind") != "operation"]

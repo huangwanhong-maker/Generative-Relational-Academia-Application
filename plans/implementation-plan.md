@@ -22,11 +22,14 @@ a builder needs, and cites the requirement behind each item so a disputed choice
 | **M1** usability pass — editor prompts, defaulted references, `show` | ✅ done | 1 day |
 | **Gate** Use it on real work for two weeks | ⬜ **deferred by decision** | 2 weeks |
 | **M2** Integrity — full act vocabulary, chain verification, redaction | ✅ done | 3–4 days |
-| **M3** Group tier — keys, signatures, attestation, disclosure grounds | ⬜ | 1 week |
+| **M3a** Group tier — keys, signatures, attestation | ✅ done | 3 days |
+| **M3b** Attribution and absorption | ⬜ | 2 days |
+| **M3c** Disclosure classes, grounds, monotone release | ⬜ | 3 days |
 | **M4** Open tier — bundle, continue, profile, deposit | ⬜ | 1 week |
 | **M5** Conformance suite | ⬜ | 3–4 days |
 
-62 tests pass; 3 are skipped — two named for M3 and M4, one platform-specific.
+76 tests pass; 2 are skipped — one named for M4, one platform-specific.
+Acceptance tests 1–7 pass; test 8 (bundle here, continue there) awaits M4.
 
 ---
 
@@ -198,13 +201,14 @@ the early tiers do not need.
 Where credibility begins. **Minimum viable adopting unit: two parties who register each other's
 transitions** *(P-II Claim 13.4)*.
 
-### Identity and signatures
-- [ ] `grrp key add <name> <pubkey>` — known parties in `.grrp/keys/`
-- [ ] Detached ed25519 signatures over `{id, registrar, time}` — **never over `disclosure` or any
+### Identity and signatures ✅
+- [x] `grrp key add <name> <pubkey>` — known parties in `.grrp/keys/`; `grrp key mine` prints what to
+      hand to a colleague; adding a second party's key **moves the record to the group tier**
+- [x] Detached ed25519 signatures over `{id, registrar, time}` — **never over `disclosure` or any
       field a later lawful operation may change** *(P-IV Req. 8.3)*
-- [ ] Passphrase on the private key *(deferred from M0 deliberately)*
-- [ ] **Pseudonymous participation at every tier** — no legal name, telephone number, affiliation or
-      government identifier may be required to hold a party identifier *(P-IV Req. 14.3)*
+- [x] **Pseudonymous participation** — nothing anywhere requires a legal name, telephone number,
+      affiliation or government identifier *(P-IV Req. 14.3)*
+- [ ] Passphrase on the private key *(still deferred; a signature is what it protects)*
 - [ ] Optional **bindings** to external identifiers: recorded as operations, visible wherever the
       party is shown, attributed, revocable *(P-IV Req. 14.4–14.5)*
 - [ ] Assurance **by class and by act kind, never as an entrance gate** — gating a stranger's
@@ -213,15 +217,27 @@ transitions** *(P-II Claim 13.4)*.
       **marked as weaker than a signature** *(P-IV Req. 14.7)*
 - [ ] Compromise = revocation with a date; prior registrations stay, marked
 
-### Attestation
-- [ ] `grrp propose ...` — any act, unregistered
-- [ ] `grrp register <tx>` — **refuse when performer and registrar are identical** *(C2)*
-- [ ] No automatic registration on a party's behalf; no holding another's credentials. A standing
-      arrangement (a supervisor routinely registering a student's transitions) is **recorded, not
-      forbidden** *(P-IV Req. 8.2)*
-- [ ] `grrp register` withdrawal is a further **challenge** referencing the attestation; the original
-      stays in the log *(P-IV Req. 8.7)*
-- [ ] **No aggregate over attestations** — not counts, depths, ratios or derived scores *(C6)*
+### Attestation ✅
+- [x] At the group tier **an act is a proposal**, not a log entry — a party cannot register their own
+      act, so what they perform waits for someone else. Proposals live outside `transitions/`, so
+      registering never edits a file under it *(C2, C3)*
+- [x] `grrp pending` — what waits on you, and what of yours waits on someone else
+- [x] `grrp register <tx>` — **refuses when performer and registrar are identical**, naming the
+      constraint and what to do instead *(C2 · acceptance test 7)*
+- [x] Registration is **outside the identifier**, so registering a proposal does not change the thing
+      its children point at
+- [x] `grrp check` verifies the signature, and catches a record marked attested whose registrar is
+      its own performer
+- [x] `grrp withdraw <tx>` — a further **challenge** that retracts, naming the registration among its
+      parents. Nothing is deleted; a reader sees both *(P-IV Req. 8.7)*. **A withdrawal is itself an
+      act, so at the group tier it too must be registered by another party** — the rule does not bend
+      for the party undoing something
+- [x] **No aggregate over attestations** — not counts, depths, ratios or derived scores *(C6)*
+- [ ] A standing arrangement (a supervisor routinely registering a student's transitions) **recorded,
+      not forbidden** *(P-IV Req. 8.2)*
+
+**Decided:** `GRRP_KEY` selects which local key acts, for a machine two parties share and for the
+tests, which need a second party to exercise registration at all. One key is the ordinary case.
 
 ### Attribution and absorption
 - [ ] `grrp attribute <tx> --party <key> --role <credit-role>` — CRediT, bound not restated *(C12)*

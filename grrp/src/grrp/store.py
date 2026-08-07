@@ -31,6 +31,7 @@ lets both rules stay strict.
 from __future__ import annotations
 
 import io
+import os
 import re
 import unicodedata
 from dataclasses import dataclass
@@ -158,8 +159,28 @@ class Repo:
     def profile(self) -> dict:
         return read_yaml(self.profile_path)
 
+    def key_name(self) -> str:
+        """Which local key is acting.
+
+        One key is the ordinary case.  ``GRRP_KEY`` exists for a machine two
+        parties share, and for the tests, which need a second party in order to
+        exercise registration at all.
+        """
+        return os.environ.get("GRRP_KEY", "self")
+
     def party(self) -> str:
+        name = self.key_name()
+        if name != "self":
+            path = self.keys_dir / f"{name}.pub"
+            if path.is_file():
+                return path.read_text(encoding="utf-8").strip()
+            raise errors.UnknownReference(f"no key named {name!r} in {self.keys_dir}")
         return self.profile()["party"]
+
+    def set_tier(self, tier: str) -> None:
+        profile = self.profile()
+        profile["tier"] = tier
+        write_yaml(self.profile_path, profile)
 
     def tier(self) -> str:
         return self.profile().get("tier", "personal")
@@ -325,6 +346,49 @@ class Repo:
             )
         write_yaml(path, record)
         return path
+
+    # -- proposals ------------------------------------------------------------
+    #
+    # At the group tier a party cannot register their own act, so an act they
+    # perform is a proposal until someone else takes responsibility for it.
+    # Proposals are kept outside transitions/ so that nothing under that
+    # directory is ever written twice: registering does not edit a proposal, it
+    # writes a transition and drops the proposal.
+
+    def proposals_dir(self, traj_id: str) -> Path:
+        return self.trajectory_dir(traj_id) / "proposals"
+
+    def proposal_path(self, traj_id: str, tx_id: str) -> Path:
+        return self.proposals_dir(traj_id) / f"{tx_id.split(':')[-1]}.yaml"
+
+    def proposals(self, traj_id: str) -> list[dict]:
+        directory = self.proposals_dir(traj_id)
+        if not directory.is_dir():
+            return []
+        return sorted(
+            (read_yaml(p) for p in directory.glob("*.yaml")),
+            key=lambda r: r.get("performed", ""),
+        )
+
+    def write_proposal(self, traj_id: str, record: dict) -> Path:
+        path = self.proposal_path(traj_id, record["id"])
+        write_yaml(path, record)
+        return path
+
+    def resolve_proposal(self, traj_id: str | None, ref: str) -> tuple[str, dict]:
+        needle = ref.split(":")[-1]
+        traj_ids = [traj_id] if traj_id else self.trajectory_ids()
+        matches = [
+            (tid, record)
+            for tid in traj_ids
+            for record in self.proposals(tid)
+            if record.get("id", "").split(":")[-1].startswith(needle)
+        ]
+        if not matches:
+            raise errors.UnknownReference(f"no proposal matching {ref!r}")
+        if len(matches) > 1:
+            raise errors.AmbiguousReference(f"{ref!r} matches several proposals")
+        return matches[0]
 
     # -- releases -------------------------------------------------------------
 

@@ -340,7 +340,8 @@ grrp release && grrp export <release> -o paper.md
 | **M0** skeleton, canonical hashing, `init` | **built** |
 | **M1** personal tier — five acts, append-only log, derived views, `open`, `show`, `export` | **built — this is the ship point** |
 | **M2** full act vocabulary, `check` over the whole chain, separable content, `redact` | **built** |
-| **M3** group tier — keypairs, signatures, `register` with performer ≠ registrar, CRediT, absorption, disclosure grounds | not built |
+| **M3a** group tier — keypairs, signatures, `register` with performer ≠ registrar | **built** |
+| **M3b–c** CRediT attribution, absorption links, disclosure grounds | not built |
 | **M4** open tier — `bundle`/`continue`, profile declaration, deposit, redaction notices | not built |
 
 The acceptance tests are written against the constraints rather than the features, and the three that
