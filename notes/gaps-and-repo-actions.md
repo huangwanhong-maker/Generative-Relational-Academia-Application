@@ -139,12 +139,11 @@ reappear in a README, a grant application, or a website.
    regressive overhead incidence, recognition of attributed contribution. These are *known holes*, not
    oversights. ✅ Added to README.
 
-4. **Licence mismatch on the code.** `LICENSE.md` is CC BY-NC, appropriate for documentation. But
-   Paper I Req. 16.2 property (4) requires the **record** to be *"licensed so that continuation elsewhere
-   is permitted"*, and Paper IV Req. 19.4 requires **the specification to be licensed so any party may
-   fork it**. CC BY-**NC** is not obviously a licence permitting continuation by, say, a commercially
-   funded lab — and the `grrp` tool itself will need a software licence, which CC BY-NC is not.
-   **Open question for the user; not resolved here.**
+4. **Licence — resolved: MIT.** ✅ Paper I Req. 16.2 property (4) requires the record to be *"licensed
+   so that continuation elsewhere is permitted"*, and Paper IV Req. 19.4 requires the specification to be
+   licensed so **any party may fork it**. CC BY-**NC** satisfied neither, and was not a software licence
+   for `grrp` either. MIT discharges all three. The four PDFs still carry an embedded CC BY-NC notice and
+   remain under it until their author revises them.
 
 5. **An `open` register / entry-path affordance** is required by Req. 6.5 and is the answer to the
    bootstrap failure (Paper I §17). The GRRP plan has `grrp open` and calls it *"the entry path"*. Good.
@@ -191,7 +190,7 @@ Worth pinning here because each is described as *the* likely error.
 | README rewritten against the papers | ✅ |
 | Both old plans folded into one [plans/implementation-plan.md](../plans/implementation-plan.md) | ✅ |
 | `grrp` reference implementation, M0 + M1 | ✅ [grrp/](../grrp/) — 36 tests passing, 3 skipped and named for M2–M4 |
-| Licence question for code and for the specification's forkability | ❌ **user's call** — CC BY-NC is not a software licence, and Req. 19.4 needs the specification forkable |
+| Licence settled as **MIT** — discharges Req. 19.4 (forkable specification) and Req. 16.2(4) (continuable record) | ✅ |
 
 ---
 
