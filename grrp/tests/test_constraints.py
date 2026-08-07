@@ -1,7 +1,8 @@
 """The acceptance tests that decide conformance.
 
-Numbered as in the build order. Tests 6 and 8 belong to M2 and M4 and are
-skipped with the reason stated, rather than quietly absent.
+Numbered as in the build order. Tests 6, 7 and 8 grew large enough to live in
+the milestone files that implement them, and a comment here says where each
+went rather than leaving a gap in the numbering.
 """
 
 from __future__ import annotations
@@ -262,9 +263,9 @@ def test_personal_tier_records_are_marked_unattested(trajectory):
 # implemented in test_m3_attestation.py.
 
 
-@pytest.mark.skip(reason="M4: bundle and continue are not implemented yet")
-def test_bundle_on_one_machine_continues_on_another_as_one_graph():
-    ...
+# Test 8 (bundle here, continue there, one graph not two) is implemented in
+# test_m4_open_tier.py. All eight acceptance tests now have a real test behind
+# them, so no placeholder remains.
 
 
 # --- ordering follows the graph, not the clock -------------------------------
