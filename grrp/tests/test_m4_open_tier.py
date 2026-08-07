@@ -355,3 +355,63 @@ def test_custody_and_succession_are_recorded_in_the_profile(workspace):
     assert "the departmental archive" in profile["custody"]
     assert "Serendip" in profile["succession"]
     assert "Serendip" in workspace.run("custody", "show").output
+
+
+# --- found by running the walkthrough ----------------------------------------
+
+def test_restricting_one_transition_does_not_withhold_its_prior_state(trajectory, tmp_path):
+    """A state's content is governed by the transition that produced it, and by
+    that one only. Deciding on a transition's prior state as well would withhold
+    content an earlier, unrestricted transition had already disclosed."""
+    workspace, traj_id = trajectory
+    workspace.run("charter", "adopt", "--classes", "private,public")
+    workspace.run("claim", traj_id, "-m", "Freely shown, and built on.")
+    shown = views.current_states(workspace.repo, traj_id)[0]
+    workspace.run("transform", "-m", "Restricted, and built on that.")
+    restricted_tx = workspace.repo.transitions(traj_id)[-1]
+    workspace.run(
+        "disclose", sid(restricted_tx["id"]), "--class", "private", "--ground", "appropriability"
+    )
+
+    result = workspace.run("bundle", "-o", str(tmp_path / "b.zip"))
+    assert result.exit_code == 0
+    with zipfile.ZipFile(tmp_path / "b.zip") as archive:
+        names = archive.namelist()
+
+    assert f"trajectories/{traj_id}/states/{shown.split(':')[-1]}.md" in names, (
+        "the earlier, unrestricted state still travels"
+    )
+    assert (
+        f"trajectories/{traj_id}/states/{restricted_tx['posterior_state'].split(':')[-1]}.md"
+        not in names
+    )
+
+
+def test_a_bundles_own_keys_are_taken_in_before_signatures_are_checked(
+    trajectory, elsewhere, tmp_path
+):
+    """Otherwise every record attested by a party the receiving machine has not
+    met arrives marked unverified, which is a different and much more alarming
+    claim than the truth: that we had not yet been given their key."""
+    from grrp import keys
+
+    workspace, traj_id = trajectory
+    colleague = keys.generate(workspace.repo.keys_dir, "colleague")
+    workspace.run("key", "add", "colleague", colleague)
+    workspace.run("claim", traj_id, "-m", "A position.")
+    proposal = workspace.repo.proposals(traj_id)[0]
+
+    import os
+
+    os.environ["GRRP_KEY"] = "colleague"
+    try:
+        workspace.run("register", sid(proposal["id"]))
+    finally:
+        os.environ.pop("GRRP_KEY", None)
+
+    archive = tmp_path / "b.zip"
+    workspace.run("bundle", "-o", str(archive))
+    output = elsewhere.run("continue", str(archive)).output
+
+    assert "unverified" not in output, "the registrar's key travelled in the bundle"
+    assert elsewhere.run("check").exit_code == 0

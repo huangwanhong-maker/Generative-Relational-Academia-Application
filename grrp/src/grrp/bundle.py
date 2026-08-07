@@ -115,23 +115,25 @@ def write(
             for path in sorted(repo.transitions_dir(traj_id).glob("*.yaml")):
                 archive.write(path, f"trajectories/{traj_id}/transitions/{path.name}")
 
+            # A state's content is governed by the transition that produced
+            # it, and by that one only. Deciding on a transition's prior state
+            # as well would withhold content that an earlier, unrestricted
+            # transition had already disclosed.
             for record in repo.transitions(traj_id):
                 if record.get("kind") == "operation":
                     continue
-                travels = _visible_content(repo, traj_id, record, include_restricted)
-                for key in ("prior_state", "posterior_state"):
-                    state_id = record.get(key)
-                    if not state_id:
-                        continue
-                    source = repo.state_path(traj_id, state_id)
-                    if not source.is_file():
-                        continue
-                    if travels:
-                        name = f"trajectories/{traj_id}/states/{source.name}"
-                        if name not in archive.namelist():
-                            archive.write(source, name)
-                    elif state_id not in withheld:
-                        withheld.append(state_id)
+                state_id = record.get("posterior_state")
+                if not state_id:
+                    continue
+                source = repo.state_path(traj_id, state_id)
+                if not source.is_file():
+                    continue
+                name = f"trajectories/{traj_id}/states/{source.name}"
+                if _visible_content(repo, traj_id, record, include_restricted):
+                    if name not in archive.namelist():
+                        archive.write(source, name)
+                elif state_id not in withheld:
+                    withheld.append(state_id)
 
             for path in sorted(repo.releases_dir(traj_id).glob("*.yaml")):
                 archive.write(path, f"trajectories/{traj_id}/releases/{path.name}")
@@ -190,7 +192,6 @@ def apply(repo: Repo, source: Path) -> Receipt:
     """
     receipt = Receipt()
     manifest = read_manifest(source)
-    known = set(keys.known(repo.keys_dir).values())
 
     with zipfile.ZipFile(source) as archive:
         for name in sorted(archive.namelist()):
@@ -215,6 +216,11 @@ def apply(repo: Repo, source: Path) -> Receipt:
                     target.parent.mkdir(parents=True, exist_ok=True)
                     target.write_bytes(archive.read(name))
 
+    # After the bundle's public keys have been taken in, not before: otherwise
+    # every record attested by a party this machine had not met would arrive
+    # marked unverified, which is a different and much more alarming claim than
+    # the truth, which is that we had not yet been given their key.
+    known = set(keys.known(repo.keys_dir).values())
     receipt.trajectories = list(manifest.get("trajectories") or [])
     receipt.content_withheld = list(manifest.get("content_withheld") or [])
 
