@@ -7,7 +7,7 @@ where the two differ.**
 A command-line tool that records the trajectory of an inquiry as **typed transitions** in an ordinary
 git repository, in plain text, **with no server, no account, and no network**.
 
-**Status: M0–M4.** All eight acts, redaction, attestation, attribution and absorption, grounded
+**Status: M0–M4, plus a local page.** All eight acts, redaction, attestation, attribution and absorption, grounded
 disclosure, and portability. **All eight acceptance tests pass.** M5 is the conformance suite.
 
 ---
@@ -48,7 +48,23 @@ grrp log
 grrp release               # publishes, enumerating objections that still stand
 grrp export <release> -o paper.md
 grrp check                 # verify the record, and this tool against the protocol
+grrp ui                    # a local page, if you would rather see it than read it
 ```
+
+### The page
+
+`grrp ui` serves a page on the loopback interface: the question, the live positions, what is
+unanswered, what is proposed, what is restricted **with its residue beside it**, and the lineage.
+You can record an act from it.
+
+It is **Level 3 — an application over the record, outside conformance**. Everything it offers is
+available from the command line, no module of the record imports it, and deleting it would leave the
+record untouched. That last claim is checked by a test rather than asserted. Stdlib only, no account,
+nothing leaves the machine.
+
+It is tested for what the design forbids, because a screen is where the temptation is strongest:
+no quantity over participants or trajectories, no branch marked principal, no control that narrows
+disclosure, no approve or veto, and the word *merge* nowhere at all.
 
 ### Credit
 

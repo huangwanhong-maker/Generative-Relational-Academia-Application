@@ -345,6 +345,7 @@ grrp release && grrp export <release> -o paper.md
 | **M3b** CRediT attribution, absorption links, contested attribution, synthesis | **built** |
 | **M3c** disclosure classes, grounds, monotone release | **built** |
 | **M4** open tier — `bundle`/`continue`, profile declaration, deposit, sealed registration | **built** |
+| **UI** a local page — Level 3, outside conformance | **built** |
 
 The acceptance tests are written against the constraints rather than the features, and **all eight
 now pass** — including the last one: bundle on one machine, continue on another with no shared

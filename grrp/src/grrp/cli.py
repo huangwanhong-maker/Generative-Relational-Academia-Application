@@ -1921,6 +1921,33 @@ def export_cmd(
         _echo(document)
 
 
+@command(name="ui")
+def ui_cmd(
+    port: int = typer.Option(7373, help="Port on the loopback interface."),
+    no_browser: bool = typer.Option(False, "--no-browser", help="Do not open a browser."),
+) -> None:
+    """Open a local page for reading the record and adding to it.
+
+    Purpose (for you): to see where a line of work stands and record an act
+    without leaving what you were doing, on the days when a terminal is the
+    thing between you and writing the objection down.
+
+    This is Level 3: an application over the record, outside conformance.
+    Everything it offers is available from the command line, the protocol is
+    implementable with none of it, and deleting it would leave the record
+    untouched. It binds to the loopback interface, keeps no account, and
+    nothing leaves the machine.
+    """
+    from . import ui
+
+    repo = _repo()
+    _echo(f"http://127.0.0.1:{port}/")
+    _echo("  Level 3 - an application over the record, outside conformance.")
+    _echo("  Loopback only. No account, nothing leaves this machine.")
+    _echo("  Ctrl-C to stop.")
+    ui.serve(repo, port=port, open_browser=not no_browser)
+
+
 @command(name="check")
 def check_cmd() -> None:
     """Verify the record, and this implementation against the protocol.

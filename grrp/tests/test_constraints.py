@@ -72,11 +72,21 @@ def test_read_commands_emit_no_cross_trajectory_quantity(workspace):
 # --- 2. independence: no network, no model, no service -----------------------
 
 def test_no_network_or_model_dependency_in_the_source():
+    """No conformant operation may require a model, a network or a service.
+
+    ui.py is exempt and the exemption is stated rather than accidental: it is
+    Level 3, an application over the record, outside conformance. It binds to
+    the loopback interface, no module of the record imports it, and the
+    protocol is implementable with it deleted. That last claim is checked in
+    test_ui.py rather than asserted here.
+    """
     forbidden_imports = (
-        "import socket", "import requests", "import urllib", "import http",
+        "import socket", "import requests", "urllib", "http.server",
         "openai", "anthropic", "boto3", "sqlite3", "import sqlalchemy",
     )
     for path in source_files():
+        if path.name == "ui.py":
+            continue
         text = path.read_text(encoding="utf-8").lower()
         for needle in forbidden_imports:
             assert needle not in text, f"{path.name} reaches for {needle}"

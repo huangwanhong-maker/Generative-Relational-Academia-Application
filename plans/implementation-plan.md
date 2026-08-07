@@ -26,9 +26,10 @@ a builder needs, and cites the requirement behind each item so a disputed choice
 | **M3b** Attribution and absorption | ✅ done | 2 days |
 | **M3c** Disclosure classes, grounds, monotone release | ✅ done | 3 days |
 | **M4** Open tier — bundle, continue, profile, deposit, seal | ✅ done | 1 week |
+| **UI** A local page — Level 3, outside conformance | ✅ done | 1 day |
 | **M5** Conformance suite | ⬜ | 3–4 days |
 
-138 tests pass; 1 is skipped, and it is platform-specific.
+155 tests pass; 1 is skipped, and it is platform-specific.
 **All eight acceptance tests pass.**
 
 ---
@@ -396,6 +397,16 @@ mistake, in miniature *(P-IV Req. 4.4, 5.3)*.
 **The protocol is implementable with none of it, and requires none of it** *(C9 · R14)*. Anything here
 is optional, additive, and clearly marked as outside conformance.
 
+- [x] **`grrp ui`** — a local page for reading a record and adding to it. Stdlib only, loopback only,
+      no account, nothing leaves the machine, a per-run token on every form. It shows the question,
+      the live positions, the open register, what is proposed, what is restricted **with its residue
+      beside it**, and the lineage — and it declares itself Level 3 on every page
+  - [x] Tested for what the design forbids, because a screen is where the temptation is strongest
+        and where a reader would most readily believe a number: no quantity over participants or
+        trajectories, no branch marked principal, **the word merge appears nowhere**, no control
+        that narrows disclosure, no approve or veto
+  - [x] A test asserts **no module of the record imports it**, so the claim that the protocol is
+        implementable without it is checked rather than asserted
 - [ ] Capture assistant proposing candidate transitions from the local event plane
   - [ ] A model may **occasion** a transition and may **not author or register one**; a
         model-originated proposal is **marked** *(P-IV Req. 4.3)*
