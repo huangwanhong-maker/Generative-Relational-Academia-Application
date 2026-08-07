@@ -364,6 +364,76 @@ class Repo:
         return read_yaml(path) if path.is_file() else None
 
 
+def external_reference(ref: str, note: str | None = None) -> dict:
+    """An artefact reference, with its identifier scheme and the date it was made.
+
+    The date matters more than it looks.  A reference to a resource that has
+    since changed or vanished is uninterpretable without knowing when it was
+    made, and a record whose value is expected to appear years later will
+    contain many such references.
+    """
+    lowered = ref.lower()
+    if lowered.startswith("doi:") or lowered.startswith("10."):
+        scheme = "doi"
+    elif lowered.startswith("arxiv:"):
+        scheme = "arxiv"
+    elif lowered.startswith("isbn:"):
+        scheme = "isbn"
+    elif lowered.startswith(("http://", "https://")):
+        scheme = "url"
+    elif lowered.startswith("state:"):
+        scheme = "state"
+    else:
+        scheme = "other"
+    entry = {"ref": ref, "scheme": scheme, "referenced_on": now()[:10]}
+    if note:
+        entry["note"] = note
+    return entry
+
+
+def new_operation(
+    *,
+    trajectory: str,
+    operation: str,
+    performer: str,
+    ground: str | None = None,
+    prior_state: str | None = None,
+    parents: list[str] | None = None,
+    performed: str | None = None,
+) -> dict:
+    """An administrative operation: a record about the arrangement, not the work.
+
+    Recorded in the same envelope as a transition, with a mandatory ``kind`` so
+    the two are never presented as records of the same sort.  Two reasons:
+    administrative activity would otherwise inflate the apparent generativity of
+    a trajectory, and the acts constituting a position have to be recorded and
+    attributable, or a position holder could act without leaving anything a
+    participant could inspect.
+    """
+    stamp = performed or now()
+    record: dict[str, Any] = {
+        "id": None,
+        "protocol": PROTOCOL,
+        "kind": "operation",
+        "trajectory": f"traj:{trajectory}",
+        "parents": parents or [],
+        "prior_state": prior_state,
+        "posterior_state": None,
+        "operation": operation,
+        "ground": ground,
+        "performer": performer,
+        "performed": stamp,
+        "registration": {
+            "registrar": performer,
+            "time": stamp,
+            "attested": False,
+            "signature": None,
+        },
+    }
+    record["id"] = canonical.transition_id(record)
+    return record
+
+
 def new_transition(
     *,
     trajectory: str,

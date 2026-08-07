@@ -72,6 +72,9 @@ RELATIONS = {
     "retracts": "cito:retracts",
     "repliesTo": "cito:repliesTo",
     "usesMethodIn": "cito:usesMethodIn",
+    "relates": "cito:citesAsRelated",
+    "supportedBy": "cito:obtainsSupportFrom",
+    "usesDataFrom": "cito:usesDataFrom",
 }
 
 #: Relations named in the design for which CiTO has no counterpart.  They are
@@ -123,6 +126,18 @@ CREDIT_ROLES = (
     "Visualization",
     "WritingOriginalDraft",
     "WritingReviewEditing",
+)
+
+# --- redaction grounds -------------------------------------------------------
+# No deployed vocabulary covers why content was removed, so this is a local set
+# and a community charter may replace it.  It is separate from the four grounds
+# of *restriction*, which are closed and concern disclosure rather than removal.
+REDACTION_GROUNDS = (
+    "erasure_request",
+    "consent_withdrawn",
+    "personal_data",
+    "hazard",
+    "legal_order",
 )
 
 # --- administrative operations ----------------------------------------------

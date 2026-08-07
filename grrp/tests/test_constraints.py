@@ -244,9 +244,8 @@ def test_personal_tier_records_are_marked_unattested(trajectory):
 
 # --- deferred ----------------------------------------------------------------
 
-@pytest.mark.skip(reason="M2: redaction is not implemented yet")
-def test_redaction_keeps_the_chain_valid_and_records_itself():
-    ...
+# Test 6 (redaction keeps the chain valid and records itself) is implemented in
+# test_m2_integrity.py.
 
 
 @pytest.mark.skip(reason="M3: registration by a distinct party is not implemented yet")

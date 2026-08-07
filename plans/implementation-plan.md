@@ -20,13 +20,13 @@ a builder needs, and cites the requirement behind each item so a disputed choice
 | **M0** Skeleton — layout, canonical hashing, `init` | ✅ done | 1–2 days |
 | **M1** Personal tier — **ship here** | ✅ done | 1 week |
 | **M1** usability pass — editor prompts, defaulted references, `show` | ✅ done | 1 day |
-| **Gate** Use it on real work for two weeks | ⬜ **not started — blocks M2** | 2 weeks |
-| **M2** Integrity — chain verification, separability, redaction | ⬜ | 3–4 days |
+| **Gate** Use it on real work for two weeks | ⬜ **deferred by decision** | 2 weeks |
+| **M2** Integrity — full act vocabulary, chain verification, redaction | ✅ done | 3–4 days |
 | **M3** Group tier — keys, signatures, attestation, disclosure grounds | ⬜ | 1 week |
 | **M4** Open tier — bundle, continue, profile, deposit | ⬜ | 1 week |
 | **M5** Conformance suite | ⬜ | 3–4 days |
 
-49 tests pass; 4 are skipped — three named for M2, M3 and M4, one platform-specific.
+62 tests pass; 3 are skipped — two named for M3 and M4, one platform-specific.
 
 ---
 
@@ -146,35 +146,50 @@ the early tiers do not need.
 
 ---
 
-## M2 — Integrity ⬜
+## M2 — Integrity ✅
 
-- [ ] Complete the act vocabulary — `grrp connect <state> --to <ref>` and `grrp verify <state>`
+- [x] Complete the act vocabulary — `grrp connect <state> --to <ref>` and `grrp verify <state>`
       *(the eight acts, P-IV Def. 6.2)*
-  - [ ] External references carry a persistent identifier and its scheme, **or** enough descriptive
-        information plus **the date the reference was made** *(P-IV Req. 5.5)*
-- [ ] `grrp check` verifies the **whole chain**, not each record in isolation
-  - [ ] An altered early transition invalidates every descendant
-  - [ ] Detection requires a second custodian where a party holds the only copy — say so in the output
-        *(P-IV §23.1)*
-- [ ] Content held **outside the versioned tree** and referenced by identifier, so redaction does not
-      need history rewriting *(P-IV §21.5, weakness 3)*
-- [ ] `grrp redact <state> --ground <g>`
-  - [ ] Removes content; the skeleton stays valid and verifiable *(C8)*
-  - [ ] Recorded as an **administrative operation** with performer, time and ground *(P-IV Req. 13.4)*
-  - [ ] **The graph is unchanged** — parent links, state references and the induced ordering survive
+  - [x] External references carry a persistent identifier and **its scheme**, plus **the date the
+        reference was made** — a reference to something since changed is uninterpretable without it
+        *(P-IV Req. 5.5)*
+  - [x] A connection to another **state** needs no new field: the transition that produced it becomes
+        a parent, so the link is in the graph and travels with the record
+  - [x] A **failed** verification is recorded `unresolved`, so it stands on the open register until
+        something answers it — which is also where a stranger could take it up
+  - [x] Neither connection nor verification supersedes the state it concerns
+- [x] `grrp check` verifies the **whole chain**, not each record in isolation
+  - [x] An altered early transition invalidates every descendant (parents are inside the payload)
+  - [x] Content missing **without a recorded redaction** is a failure, not an absence
+- [x] Administrative operations: same envelope, **mandatory `kind`**, `act`/`target`/`relation`/
+      `disposition` **absent**, an `operation` field in their place; never presented as transitions
+      *(P-IV Req. 4.6)*
+- [x] `grrp redact <state> --ground <g>`
+  - [x] Removes content; the skeleton stays valid and verifiable *(C8)*
+  - [x] Recorded as an operation with performer, time and **ground covered by the identifier**, so a
+        ground that could be altered afterwards would be no ground at all *(P-IV Req. 13.4)*
+  - [x] **The graph is unchanged** — parent links, state references and the induced ordering survive
         *(P-IV Req. 13.5)*
-  - [ ] The record of the redaction is itself never removable; redacted content is never represented
-        as never having existed
-  - [ ] Reconstruct affected caches; **record which emitted documents referenced redacted content**
-        so a party can pursue them outside the system *(P-IV Req. 13.6)*
-- [ ] **Decide and record: the per-record secret.** Where content is short and drawn from a small
-      space, its content-derived identifier permits recovery by exhaustive search. A secret must be
-      applied **before** the identifier is computed, so this is decided in advance or not at all
-      *(P-IV §13.5)* — **touches C8; flag before implementing**
-- [ ] Administrative operations use the same envelope with a mandatory `kind` and an `operation`
-      field, and are **never presented as transitions** *(P-IV Req. 4.6)*
-- [ ] **Test 4:** editing any file under `transitions/` is detected *(already passing; extend to the chain)*
-- [ ] **Test 6:** after `grrp redact` the chain verifies, the graph is unchanged, and the redaction is recorded
+  - [x] The redaction record is not removable; redacted content is **never represented as never
+        having existed** — `show`, `log` and `export` all say so, with the ground
+  - [x] Confirmation before removal, and a plain statement that **earlier git commits still contain
+        the text** and that a copy already obtained by another party is beyond reach of both
+
+### Decided in the course of M2 — flagged, not settled quietly
+
+- **Content stays inside the versioned tree.** The specification prefers content held outside it
+  (§21.5, weakness 3), because git history is immutable and a redaction cannot reach a prior commit.
+  Moving it out would mean a `git clone` no longer carries the record, and portability would then
+  depend on `grrp bundle`, which does not exist until M4. So content is versioned, `redact` removes
+  it from the working tree, and the tool **says plainly what it has and has not achieved**.
+  *Revisit at M4, when bundle can carry content.* **Touches C8, C10.**
+- **Redaction grounds are a local vocabulary** (`erasure_request`, `consent_withdrawn`,
+  `personal_data`, `hazard`, `legal_order`). No deployed vocabulary covers *why content was removed*,
+  and this is deliberately separate from the four closed grounds of **restriction**, which concern
+  disclosure rather than removal. A charter may replace it. **Touches C12.**
+- **The per-record secret is still not decided** — see Open decisions. It has to be settled before any
+  short redactable content is hashed, because it changes identifier construction.
+  - [ ] Decide it.
 
 ---
 

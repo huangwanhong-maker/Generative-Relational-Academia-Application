@@ -327,6 +327,8 @@ grrp claim     -m "Trust obtains between individuals."
 grrp challenge -m "This omits institutional power."      # defaults to the live position
 grrp transform -m "Trust is shaped by asymmetry of power." --answering <challenge>
 grrp decide --abandon      # omit -m and your editor opens, asking for the reason
+grrp connect --to doi:10.1234/x -m "Same obstruction, other field."
+grrp verify --failed -m "Independence does not hold in the target domain."
 
 grrp show        # where this stands: question, live positions, what is still open
 grrp open        # what you still owe an answer to — and the entry path for strangers
@@ -337,7 +339,7 @@ grrp release && grrp export <release> -o paper.md
 |---|---|
 | **M0** skeleton, canonical hashing, `init` | **built** |
 | **M1** personal tier — five acts, append-only log, derived views, `open`, `show`, `export` | **built — this is the ship point** |
-| **M2** hash chaining, `check` over the whole chain, separable content, `redact` | not built |
+| **M2** full act vocabulary, `check` over the whole chain, separable content, `redact` | **built** |
 | **M3** group tier — keypairs, signatures, `register` with performer ≠ registrar, CRediT, absorption, disclosure grounds | not built |
 | **M4** open tier — `bundle`/`continue`, profile declaration, deposit, redaction notices | not built |
 

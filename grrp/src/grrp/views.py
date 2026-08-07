@@ -206,6 +206,29 @@ def absorptions(records: list[dict]) -> list[dict]:
     return out
 
 
+def redactions(repo: Repo, traj_id: str) -> dict[str, dict]:
+    """States whose content has been removed, by state identifier.
+
+    A redacted record continues to assert that a transition occurred, by whom,
+    of what type, and at what position in the graph.  It no longer supplies
+    what was said.  The record of the removal is itself never removed: a system
+    that erased the trace of an erasure would leave a record misdescribing its
+    own history, in a way no later reader could detect.
+    """
+    return {
+        record["prior_state"]: record
+        for record in repo.transitions(traj_id)
+        if record.get("kind") == "operation"
+        and record.get("operation") == "redaction"
+        and record.get("prior_state")
+    }
+
+
+def transitions_only(records: list[dict]) -> list[dict]:
+    """Transitions, with administrative operations filtered out."""
+    return [r for r in records if r.get("kind") != "operation"]
+
+
 def has_attestation(repo: Repo, traj_id: str) -> bool:
     return any(
         (record.get("registration") or {}).get("attested")

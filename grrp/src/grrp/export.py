@@ -61,7 +61,15 @@ def render_release(repo: Repo, traj_id: str, release: dict) -> str:
 
     lines.append("## Released state")
     lines.append("")
-    lines.append(content.rstrip() if content else "*(content not available)*")
+    if content:
+        lines.append(content.rstrip())
+    else:
+        removal = views.redactions(repo, traj_id).get(state_id)
+        lines.append(
+            f"*(content redacted on the ground of {removal.get('ground')}; the transition, "
+            "its position in the graph and the record of the removal remain)*"
+            if removal else "*(content not available)*"
+        )
     lines.append("")
 
     lines.append("## Objections standing at release")

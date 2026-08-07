@@ -89,6 +89,8 @@ PROMPTS = {
         "assumption that failed, the obstruction you met. A direction recorded as\n"
         "abandoned without a reason cannot be revisited by anyone, including you."
     ),
+    "connect": "Why does this connection matter to the state you are connecting from?",
+    "verify": "What was the outcome? Say what you checked and what came of it.",
     "new": "What are you actually trying to find out?",
 }
 
@@ -526,6 +528,159 @@ def release(
     _echo(f"  export it: grrp export {canonical.short(record['id'])}")
 
 
+@command()
+def connect(
+    to: str = typer.Option(..., "--to", help="A state, or an external work: doi:… arxiv:… https://…"),
+    state: str = typer.Argument(None, help="The state you are connecting from. Defaults to the live position."),
+    message: str = typer.Option(None, "-m", "--message", help="Why the connection matters."),
+    file: Path = typer.Option(None, "--file", help="Read the note from a file."),
+    relation: str = typer.Option("relates", help=f"One of: {', '.join(sorted(vocab.RELATIONS))}."),
+    traj: str = TRAJ_OPTION,
+    trigger: str = typer.Option("literature", help=f"One of: {', '.join(vocab.TRIGGERS)}."),
+) -> None:
+    """Relate a state to another state, or to work outside the trajectory.
+
+    Purpose (for you): so that the paper you found at 2am, and the reason it
+    bears on what you are doing, are attached to the thing they bear on rather
+    than to a tab you will close.
+
+    An external reference records its identifier scheme and the date you made
+    it, because a reference to something that has since changed is
+    uninterpretable without knowing when it was made.
+    """
+    repo = _repo()
+    relation_value, bound = vocab.resolve_relation(relation)
+    if not bound:
+        _echo(f"  note: {relation_value} is a local value and needs a charter to define it")
+    traj_id, prior = _resolve_prior(repo, state, traj)
+    text = _message(message, file, "connect")
+
+    parents = _parents_for(repo, traj_id, prior)
+    artefacts: list[dict] = []
+    try:
+        # A connection to a state elsewhere is recorded in the graph: the
+        # transition that produced it becomes a parent, so no new field is
+        # needed and the link travels with the record.
+        other_traj, other_state = repo.resolve_state(None, to)
+        for record in repo.transitions(other_traj):
+            if record.get("posterior_state") == other_state and record["id"] not in parents:
+                parents.append(record["id"])
+        artefacts.append(store.external_reference(other_state))
+    except (errors.UnknownReference, errors.AmbiguousReference):
+        artefacts.append(store.external_reference(to))
+
+    state_id, _ = repo.write_state(traj_id, text)
+    record = store.new_transition(
+        trajectory=traj_id,
+        act="connection",
+        performer=repo.party(),
+        parents=parents,
+        prior_state=prior,
+        posterior_state=state_id,
+        target="artefact",
+        relation=relation_value,
+        trigger=trigger,
+        disposition="accepted",
+        artefacts=artefacts,
+    )
+    _record(repo, traj_id, record, "connect ")
+    _echo(f"  to       {artefacts[0]['ref']}  ({artefacts[0]['scheme']})")
+
+
+@command()
+def verify(
+    state: str = typer.Argument(None, help="The state you checked. Defaults to the live position."),
+    message: str = typer.Option(None, "-m", "--message", help="The outcome."),
+    file: Path = typer.Option(None, "--file", help="Read the outcome from a file."),
+    failed: bool = typer.Option(False, "--failed", help="The check did not come out as predicted."),
+    traj: str = TRAJ_OPTION,
+    trigger: str = typer.Option("experiment", help=f"One of: {', '.join(vocab.TRIGGERS)}."),
+) -> None:
+    """Report the outcome of a check performed on a state.
+
+    Purpose (for you): so that "we already ran that" is answerable, and so that
+    a result which did not come out as predicted is attached to the claim it
+    bears on instead of being remembered as a vague misgiving.
+
+    A failed check is recorded as unresolved, so it stands on the open register
+    until something answers it -- which is also where a stranger could take it up.
+    """
+    repo = _repo()
+    traj_id, prior = _resolve_prior(repo, state, traj)
+    text = _message(message, file, "verify")
+    state_id, _ = repo.write_state(traj_id, text)
+    record = store.new_transition(
+        trajectory=traj_id,
+        act="verification",
+        performer=repo.party(),
+        parents=_parents_for(repo, traj_id, prior),
+        prior_state=prior,
+        posterior_state=state_id,
+        target="hypothesis",
+        relation=vocab.RELATIONS["refutes"] if failed else vocab.RELATIONS["confirms"],
+        trigger="failure" if failed and trigger == "experiment" else trigger,
+        disposition="unresolved" if failed else "accepted",
+    )
+    _record(repo, traj_id, record, "verify  ")
+    if failed:
+        _echo("  standing - it will appear in 'grrp open' until something answers it")
+
+
+@command()
+def redact(
+    state: str = typer.Argument(..., help="The state whose content is to be removed."),
+    ground: str = typer.Option(
+        ..., "--ground", help=f"One of: {', '.join(vocab.REDACTION_GROUNDS)}."
+    ),
+    traj: str = TRAJ_OPTION,
+    yes: bool = typer.Option(False, "--yes", help="Do not ask for confirmation."),
+) -> None:
+    """Remove the content of a state, keeping the record that it existed.
+
+    Purpose (for you): so that a participant can withdraw what they wrote, or
+    personal material can be removed, without the record of the work becoming a
+    lie about its own history.
+
+    What survives: that a transition occurred, by whom, of what type, at what
+    position in the graph, and that a redaction was performed and on what
+    ground. What does not: what was said.
+    """
+    repo = _repo()
+    if ground not in vocab.REDACTION_GROUNDS:
+        raise errors.GrrpError(
+            f"ground must be one of: {', '.join(vocab.REDACTION_GROUNDS)}"
+        )
+    traj_id, state_id = repo.resolve_state(repo.resolve_trajectory(traj) if traj else None, state)
+    path = repo.state_path(traj_id, state_id)
+    if not path.is_file():
+        raise errors.GrrpError(f"{canonical.short(state_id)} has no content to remove")
+
+    _echo(f"about to remove the content of {canonical.short(state_id)}:")
+    _echo(f"  {_headline(repo, traj_id, state_id)}")
+    _echo("")
+    _echo("This cannot be undone, and the fact that you did it stays in the record.")
+    if not yes and not typer.confirm("remove it?"):
+        raise errors.GrrpError("nothing removed")
+
+    path.unlink()
+    record = store.new_operation(
+        trajectory=traj_id,
+        operation="redaction",
+        performer=repo.party(),
+        ground=ground,
+        prior_state=state_id,
+        parents=_parents_for(repo, traj_id, state_id),
+    )
+    written = repo.append_transition(traj_id, record)
+    _echo(f"redacted  {canonical.short(record['id'])}  ground {ground}")
+    _echo("  the graph is unchanged and the chain still verifies: grrp check")
+    _commit(repo, [written, path], f"redaction {canonical.short(record['id'])}")
+    _echo("")
+    _echo("  Note: earlier git commits still contain the removed text. Removing it")
+    _echo("  from history is a separate operation on the substrate (git filter-repo),")
+    _echo("  and any copy already obtained by another party is beyond reach of both.")
+
+
 # --------------------------------------------------------------------------- #
 # reading
 # --------------------------------------------------------------------------- #
@@ -614,16 +769,23 @@ def log_cmd(
         for record in repo.transitions(traj_id):
             registration = record.get("registration") or {}
             mark = " " if registration.get("attested") else "!"
+            if record.get("kind") == "operation":
+                _echo(
+                    f"  . {canonical.short(record['id'])}  {record.get('performed')}  "
+                    f"[{record.get('operation')}]".ljust(14)
+                    + f" ground {record.get('ground')}"
+                )
+                continue
             _echo(
                 f"  {mark} {canonical.short(record['id'])}  {record.get('performed')}  "
                 f"{record.get('act'):<14} {record.get('disposition')}"
             )
             state_id = record.get("posterior_state")
-            content = repo.read_state(traj_id, state_id) if state_id else None
-            if content:
-                _echo(f"      {content.strip().splitlines()[0][:88]}")
+            if state_id:
+                _echo(f"      {_headline(repo, traj_id, state_id, width=88)}")
         _echo()
     _echo("!  registered by the party who performed it - unattested")
+    _echo(".  an operation on the record, not a transition")
 
 
 @command(name="state")
@@ -794,6 +956,9 @@ def _resolve_prior(repo: Repo, ref: str | None, traj: str | None = None) -> tupl
 def _headline(repo: Repo, traj_id: str, state_id: str, width: int = 72) -> str:
     content = repo.read_state(traj_id, state_id)
     if not content:
+        removal = views.redactions(repo, traj_id).get(state_id)
+        if removal:
+            return f"(redacted on the ground of {removal.get('ground')})"
         return "(content not available)"
     first = content.strip().splitlines()[0]
     return first if len(first) <= width else first[: width - 1] + "…"

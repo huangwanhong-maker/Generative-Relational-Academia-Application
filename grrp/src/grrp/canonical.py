@@ -50,6 +50,7 @@ COVERED_FIELDS = (
     "trigger",
     "disposition",
     "operation",
+    "ground",
     "performer",
     "performed",
     "contributions",

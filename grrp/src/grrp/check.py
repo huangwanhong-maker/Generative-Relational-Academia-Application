@@ -105,6 +105,16 @@ def _check_trajectory(repo: Repo, traj_id: str, report: Report) -> None:
         elif record.get("kind") == "operation":
             if record.get("operation") not in vocab.OPERATIONS:
                 report.fail(f"{traj_id}/{label}: unknown operation {record.get('operation')!r}")
+            if record.get("act") or record.get("disposition"):
+                report.fail(
+                    f"{traj_id}/{label}: an operation carries no act and no disposition. "
+                    "Operations and transitions must not be records of the same kind."
+                )
+            if record.get("operation") == "redaction":
+                if not record.get("ground"):
+                    report.fail(f"{traj_id}/{label}: a redaction must record its ground")
+                if not record.get("prior_state"):
+                    report.fail(f"{traj_id}/{label}: a redaction must name the state redacted")
         else:
             report.fail(f"{traj_id}/{label}: unknown kind {record.get('kind')!r}")
 
@@ -125,6 +135,7 @@ def _check_trajectory(repo: Repo, traj_id: str, report: Report) -> None:
             attested += 1
 
     _check_acyclic(traj_id, records, by_id, report)
+    _check_content(repo, traj_id, records, report)
 
     if records and attested == 0:
         report.note(
@@ -132,6 +143,51 @@ def _check_trajectory(repo: Repo, traj_id: str, report: Report) -> None:
             "The record is unattested: useful to its author, and carrying no evidential "
             "weight. Credibility begins where a second party registers."
         )
+
+
+def _check_content(repo: Repo, traj_id: str, records: list[dict], report: Report) -> None:
+    """Content may be missing, and only for a recorded reason.
+
+    Separability is what makes the log both tamper-evident and lawfully
+    redactable: removing a state's content leaves the skeleton, its parent
+    links and its identifier chain intact.  What it must not do is leave a gap
+    nobody can account for, so a missing state without a recorded redaction is
+    a failure rather than an absence.
+    """
+    from . import views
+
+    removed = views.redactions(repo, traj_id)
+    referenced: set[str] = set()
+    for record in records:
+        for key in ("prior_state", "posterior_state"):
+            if record.get(key):
+                referenced.add(record[key])
+
+    for state_id in sorted(referenced):
+        if repo.state_path(traj_id, state_id).is_file():
+            continue
+        operation = removed.get(state_id)
+        if operation:
+            report.note(
+                f"{traj_id}/{canonical.short(state_id)}: content redacted on the ground of "
+                f"{operation.get('ground')}. The transition, its position in the graph and "
+                "the record of the removal all remain."
+            )
+        else:
+            report.fail(
+                f"{traj_id}/{canonical.short(state_id)}: content is missing and no redaction "
+                "was recorded. Either the file was deleted outside grrp, or the record has "
+                "been tampered with."
+            )
+
+    # The graph must be unaffected by a removal.
+    for state_id, operation in removed.items():
+        producers = [r for r in records if r.get("posterior_state") == state_id]
+        if not producers:
+            report.fail(
+                f"{traj_id}/{canonical.short(operation['id'])}: redaction names a state no "
+                "transition produced"
+            )
 
 
 def _check_acyclic(traj_id: str, records: list[dict], by_id: dict, report: Report) -> None:

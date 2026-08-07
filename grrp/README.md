@@ -7,10 +7,10 @@ where the two differ.**
 A command-line tool that records the trajectory of an inquiry as **typed transitions** in an ordinary
 git repository, in plain text, **with no server, no account, and no network**.
 
-**Status: M0 + M1.** Personal tier. Useful alone, and carrying **no evidential weight** — every
-transition is registered by the party who performed it, and is marked unattested wherever it is shown
-or exported. Attestation, disclosure grounds, redaction, bundling and continuation are M2–M4 and are
-not built.
+**Status: M0 + M1 + M2.** Personal tier, all eight acts, and redaction. Useful alone, and carrying
+**no evidential weight** — every transition is registered by the party who performed it, and is
+marked unattested wherever it is shown or exported. Attestation, disclosure grounds, bundling and
+continuation are M3–M4 and are not built.
 
 ---
 
@@ -39,6 +39,9 @@ grrp claim      -m "Trust obtains between individuals."
 grrp challenge  -m "This omits institutional power."
 grrp transform  -m "Trust is a process shaped by asymmetry of power." --answering <challenge>
 grrp decide     --abandon        # no -m: opens your editor and asks for the reason
+grrp connect    --to doi:10.1234/x -m "Same obstruction, other field."
+grrp verify     --failed -m "Ran it on the target domain; independence fails."
+grrp redact     <state> --ground consent_withdrawn
 
 grrp show                  # where this stands: question, live positions, what is open
 grrp open                  # what you still owe an answer to — and the entry path
@@ -105,7 +108,7 @@ are stated in one place ([`views.py`](src/grrp/views.py)):
 | **supersedes** its prior | `transformation` only |
 | **retires** its prior | `decision` whose relation is `cito:retracts` (i.e. `--abandon`) |
 | a **live position** | posterior of `claim` or `transformation`, not superseded and not retired |
-| **answered** | a challenge that a later `transformation` or `decision` names among its parents |
+| **answered** | a challenge or failed verification that a later `transformation` or `decision` names among its parents |
 
 A trajectory's opening **question is a state and not a position**: it is what the work is about, it
 does not stop being so when someone takes a view, and it stays on the open register until something
@@ -135,6 +138,11 @@ mark a challenge answered — the graph already records it.
   such (`trigger: ai_suggestion`).
 - **No editing.** A recorded transition is never altered or removed. A correction is a further
   transition referencing the one corrected.
+- **No silent erasure.** `redact` removes a state's content and leaves everything else: that the
+  transition occurred, by whom, of what type, where in the graph — and that a redaction was performed
+  and on what ground. A system that erased the trace of an erasure would leave a record misdescribing
+  its own history in a way no later reader could detect. It also tells you plainly that earlier git
+  commits still hold the text, because possibility is not lawfulness.
 
 ## Bindings
 
@@ -159,9 +167,9 @@ The acceptance tests are written against the constraints, not the features:
 | 3 | every command's `--help` names the purpose it serves for the person running it |
 | 4 | editing anything under `transitions/` is detected by `grrp check` |
 | 5 | a disclosure change does not invalidate verification |
+| 6 | after `grrp redact`, the chain verifies, the graph is unchanged, and the redaction is recorded |
 | — | acts default to the live position, and refuse rather than guess at a divergence |
 | — | omitting `-m` opens an editor; the prompt below the cut is never recorded |
-| 6 | *(M2)* after redaction the chain still verifies and the redaction is recorded — **skipped** |
 | 7 | *(M3)* `register` refuses when performer and registrar are identical — **skipped** |
 | 8 | *(M4)* `bundle` here, `continue` there, one graph and not two — **skipped** |
 
