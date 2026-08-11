@@ -1,44 +1,42 @@
-MIT License
+# Licensing
 
-Copyright (c) 2026 Wanhong Huang and Serendip Commons Society
+Generative Relational Academia (GRA) is developed as open scholarly infrastructure intended to remain freely usable, inspectable, extendable, and continuable by researchers, institutions, and communities.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+## Software
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+The `grrp` reference implementation and other software in this repository, unless otherwise stated, are licensed under the **GNU Affero General Public License, version 3 or any later version (AGPL-3.0-or-later)**.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+Copyright © 2026 Wanhong Huang and all contributors listed in CONTRIBUTORS.md.
 
----
+The complete licence text is provided in [`LICENSE`](LICENSE).
 
-## Scope
+The choice of AGPL reflects the generative and commons-oriented design of this project. GRA may be deployed as network-accessible scholarly infrastructure, and developments emerging from the shared implementation should remain capable of circulating back into the commons.
 
-This licence covers the specification, the `grrp` reference implementation, and the
-documentation in this repository.
+## Specification and documentation
 
-Two requirements of the design depend on it, and MIT discharges both:
+The GRA and GRRP specifications and documentation are intended to be openly forkable, independently implementable, and continuable across infrastructures.
 
-- The specification must be licensed so that **any party may fork it**, and conformance to a
-  fork must be expressible in the version identifier — otherwise custodianship of the
-  specification is a position rather than a service (Paper IV, Requirement 19.4).
-- A record must be **licensed so that continuation elsewhere is permitted**, which is one of the
-  five joint properties of portability, and portability is the only bound this design places on
-  the authority of any position within it (Paper I, Requirement 16.2).
+They are licensed under the **Creative Commons Attribution 4.0 International licence (CC BY 4.0)** unless otherwise stated.
+
+Two requirements of the design particularly motivate this openness:
+
+* The specification must be licensed so that **any party may fork it**, and conformance to a fork must be expressible in the version identifier. Otherwise, custodianship of the specification becomes a position of authority rather than a service (Paper IV, Requirement 19.4).
+* A record must permit **continuation elsewhere**. This is one of the five joint properties of portability, and portability is the principal bound this design places on the authority of any infrastructural position within it (Paper I, Requirement 16.2).
+
+The licensing of the protocol does not require an independent implementation of GRA or GRRP to use the licence of the reference software merely because it implements the protocol.
+
+## Research records and contributed content
+
+The software and documentation licences of this repository do not automatically determine the licences of research records, manuscripts, datasets, media, or other scholarly content created, deposited, referenced, or managed through GRA.
+
+Such materials remain subject to the licences and rights specified by their respective authors or rights holders.
 
 ## The four papers
 
-The PDFs in `papers/` each carry their own licence notice inside the document,
-**Creative Commons Attribution–NonCommercial 4.0 International (CC BY-NC 4.0)**, and remain
-under it until those notices are revised by their author. Where this file and a document's own
-notice differ, the document's notice governs that document.
+The PDFs in `papers/` each carry their own licence notice within the document:
+
+**Creative Commons Attribution–NonCommercial 4.0 International (CC BY-NC 4.0).**
+
+They remain under those terms until their licence notices are revised by their author.
+
+Where this licensing statement and a document's own licence notice differ, the licence stated within that document governs that document.
