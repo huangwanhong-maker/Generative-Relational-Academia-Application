@@ -1,3 +1,25 @@
+> [!IMPORTANT]
+>
+> ### Building the next open infrastructure for generative academia
+>
+> We are saddened by the recent announcement that OSF will discontinue the creation of new Projects and eventually make existing Projects read-only. OSF has made an important contribution to open science and research collaboration, and this transition also reminds us how difficult it is to sustain open scholarly infrastructure over the long term.
+>
+> Knowledge and academia develop through continuous co-evolution, propagation, discussion, revision, and co-creation within a commons. Research projects are living generative processes: ideas emerge, relations form, evidence changes understanding, discussions redirect trajectories, and new knowledge creates conditions for further knowledge.
+>
+> This is one of the motivations behind **Generative Relational Academia (GRA)**.
+>
+> GRA aims to develop an open academic protocol and infrastructure supporting familiar scholarly functions such as research project management, publication, persistent identification and DOI integration, while placing particular emphasis on the **generativity and evolving trajectory of research itself**. We are exploring how research processes, epistemic transitions, provenance, collaboration, discussion, AI participation, and relations among scholarly objects can become visible, interoperable, reconstructable, and capable of continuing across platforms.
+>
+> This is currently an independently initiated open project. We welcome researchers, developers, librarians, open-science communities, universities, research infrastructures, and anyone interested in the future of scholarly communication to discuss, experiment, contribute, or explore possible cooperation with us.
+>
+> **If you are interested in co-creating this infrastructure,**
+> please feel free to contact us or contribute directly to this repository:
+>
+> **Wanhong HUANG**
+> Serendip Commons Society
+> [huangwanhong@serendip.ngo](mailto:huangwanhong@serendip.ngo)
+
+
 # Generative Relational Academia (GRA)
 
 **Infrastructure for recording how understanding changes.**
