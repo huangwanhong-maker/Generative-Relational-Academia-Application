@@ -2,7 +2,7 @@
 >
 > ### Building the next open infrastructure for generative academia
 >
-> We are saddened by the recent announcement that OSF will discontinue the creation of new Projects and eventually make existing Projects read-only. OSF has made an important contribution to open science and research collaboration, and this transition also reminds us how difficult it is to sustain open scholarly infrastructure over the long term.
+> Recent changes across the open-science infrastructure landscape have again highlighted how difficult it is to sustain open scholarly spaces over the long term.
 >
 > Knowledge and academia develop through continuous co-evolution, propagation, discussion, revision, and co-creation within a commons. Research projects are living generative processes: ideas emerge, relations form, evidence changes understanding, discussions redirect trajectories, and new knowledge creates conditions for further knowledge.
 >
