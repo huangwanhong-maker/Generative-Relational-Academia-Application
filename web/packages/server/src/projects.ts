@@ -9,13 +9,21 @@
 import { and, eq, like, or } from 'drizzle-orm'
 
 import type { Db } from './database.js'
-import { projects, searchText, trajectories } from './db.js'
+import { projects, searchText, trajectories, users } from './db.js'
 import { listRecordSlugs, readHostFacts, readProject, writeHostFacts } from './records.js'
 
 export interface Listed {
   slug: string
   title: string
   openedBy: string
+  /**
+   * The account name behind that key, when this host knows one.
+   *
+   * A convenience for reading, never an identifier: the party is the key. A
+   * project opened by someone with no account here still shows its key, which
+   * is the honest answer rather than "unknown".
+   */
+  openedByName: string | null
   tier: string
   disclosure: string
   openedAt: string
@@ -126,10 +134,12 @@ export async function getProject(db: Db, slug: string): Promise<Listed | null> {
 async function withTrajectories(db: Db, row: typeof projects.$inferSelect): Promise<Listed> {
   const lines = await db.select().from(trajectories).where(eq(trajectories.projectId, row.id))
   lines.sort((a, b) => a.trajId.localeCompare(b.trajId))
+  const [opener] = await db.select().from(users).where(eq(users.party, row.openedBy)).limit(1)
   return {
     slug: row.slug,
     title: row.title,
     openedBy: row.openedBy,
+    openedByName: opener?.name ?? null,
     tier: row.tier,
     disclosure: row.disclosure,
     openedAt: row.openedAt,

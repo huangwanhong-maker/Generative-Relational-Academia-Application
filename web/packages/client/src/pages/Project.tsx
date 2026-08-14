@@ -26,7 +26,7 @@ export function ProjectPage({ me }: { me: Me }) {
   if (problem) return <div className="note warn">{problem}</div>
   if (!project) return <div className="note">reading…</div>
 
-  const mine = project.openedBy === me.party
+  const mine = me.signedIn && project.openedBy === me.party
 
   const widen = async () => {
     setProject(await api.disclose(slug))
@@ -37,6 +37,7 @@ export function ProjectPage({ me }: { me: Me }) {
       <header>
         <h1>{project.slug}</h1>
         <p className="lede">
+          opened by {project.openedByName ?? <span className="id">{project.openedBy}</span>} ·{' '}
           {project.tier} tier ·{' '}
           {project.disclosure === 'listed' ? 'shared on this server' : 'not shared here'}
         </p>
@@ -66,21 +67,21 @@ export function ProjectPage({ me }: { me: Me }) {
 
       {mine && project.disclosure !== 'listed' && (
         <>
-          <h2>Share this record here</h2>
+          <h2>Share this project</h2>
           <div className="note">
-            Listing it lets anyone with an account on this server read it and search it. It cannot
-            be unlisted afterwards — disclosure widens and never narrows, so this is a decision
+            Listing it lets anyone read and search it, including people with no account here. It
+            cannot be unlisted afterwards — disclosure widens and never narrows, so this is a decision
             rather than a setting.
           </div>
-          <button onClick={widen}>list it on this server</button>
+          <button onClick={widen}>share it</button>
         </>
       )}
 
       <div className="note">
         Recording acts — positions, objections, checks — is done with{' '}
         <span className="id">grrp</span> against the files themselves. Bringing those to this page
-        is the next thing being built; nothing you record at the terminal is invisible here, it
-        just needs a reindex.
+        is the next thing being built; nothing recorded at the terminal is invisible here, it just
+        needs a reindex.
       </div>
     </>
   )

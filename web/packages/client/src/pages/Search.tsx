@@ -10,7 +10,7 @@
 import { useState, type FormEvent, type ReactNode } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 
-import { api, type Hit } from '../api'
+import { api, type Hit, type Me } from '../api'
 
 /** Show where the word occurs. Marking a match is not scoring it. */
 function highlight(text: string, needle: string): ReactNode {
@@ -21,7 +21,7 @@ function highlight(text: string, needle: string): ReactNode {
   )
 }
 
-export function SearchPage() {
+export function SearchPage({ me }: { me: Me }) {
   const [params, setParams] = useSearchParams()
   const query = params.get('q') ?? ''
   const [draft, setDraft] = useState(query)
@@ -49,7 +49,9 @@ export function SearchPage() {
       <header>
         <h1>Search</h1>
         <p className="lede">
-          Across the records you can see: your own, and the ones shared on this server.
+          {me.signedIn
+            ? 'Across the projects you can see: your own, and the ones shared on this server.'
+            : 'Across the projects shared on this server. No account needed to read them.'}
         </p>
       </header>
 

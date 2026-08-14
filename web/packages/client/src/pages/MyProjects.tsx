@@ -1,14 +1,17 @@
 /**
- * Your records, and the way to start one.
+ * Your projects, and the way to open one.
+ *
+ * The only page that needs an account. Everything else on this server can be
+ * read signed out.
  */
 
 import { useEffect, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import { api, ApiError, type Me, type Project } from '../api'
-import { RecordList } from './RecordList'
+import { ProjectList } from './ProjectList'
 
-export function MyRecords({ me }: { me: Me }) {
+export function MyProjects({ me }: { me: Me }) {
   const [projects, setProjects] = useState<Project[] | null>(null)
   const [title, setTitle] = useState('')
   const [question, setQuestion] = useState('')
@@ -26,7 +29,7 @@ export function MyRecords({ me }: { me: Me }) {
     setProblem('')
     try {
       const project = await api.openProject(title, question)
-      navigate(`/r/${project.slug}`)
+      navigate(`/p/${project.slug}`)
     } catch (error) {
       setProblem(error instanceof ApiError ? error.message : String(error))
     } finally {
@@ -37,25 +40,25 @@ export function MyRecords({ me }: { me: Me }) {
   return (
     <>
       <header>
-        <h1>Your records</h1>
+        <h1>Your projects</h1>
         <p className="lede">
-          Each record is a directory of work with one or more questions in it. It is plain files in
-          a filesystem — readable without this page, and yours to take anywhere without asking
-          anyone.
+          A project holds one or more questions and everything that happened to them. Underneath it
+          is a directory of plain files — readable without this page, and yours to take anywhere
+          without asking anyone.
         </p>
       </header>
 
       <h2>Here</h2>
-      <RecordList
+      <ProjectList
         projects={projects ?? []}
         empty={
           projects === null
             ? 'reading…'
-            : 'Nothing yet. A record starts with a question you are actually trying to answer.'
+            : 'Nothing yet. A project starts with a question you are actually trying to answer.'
         }
       />
 
-      <h2>Start a record</h2>
+      <h2>Open a project</h2>
       <form onSubmit={open}>
         <label>
           The question you are actually trying to answer
@@ -83,8 +86,8 @@ export function MyRecords({ me }: { me: Me }) {
       </form>
 
       <div className="note">
-        A record you open is not shared on this server until you say so, and sharing only ever
-        widens: there is no unshare, here or anywhere in the design. Signed in as{' '}
+        A project you open is not shared on this server until you say so, and sharing only ever
+        widens: there is no unshare, here or anywhere in the design. You sign as{' '}
         <span className="id">{me.party}</span>.
       </div>
     </>

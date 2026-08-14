@@ -8,7 +8,17 @@ Three packages, and the boundary between them is the design:
 |---|---|---|
 | `packages/protocol` | GRRP v0.1 in TypeScript | canonicalisation, identifiers, signing — the same code in the browser and on the server |
 | `packages/server` | Fastify + SQLite | accounts, sessions, an index. Owns no protocol decisions |
-| `packages/client` | React + Vite | four pages. Disposable by design |
+| `packages/client` | React + Vite | the pages. Disposable by design |
+
+The front page is public. Reading what people have shared, and searching across
+it, needs no account — an account is access to this host, not permission to
+look, and a front door that demanded a login before it showed you anything
+would have already decided it was the authority. Signing in adds one thing:
+your own projects, and the ability to open one.
+
+**Project** is the top-level object, the way a repository is on a forge. A
+project holds one or more questions; underneath it is *the record*, which is
+the protocol's word for the files.
 
 The reference implementation, [`grrp`](../grrp), stays Python and stays the
 thing the protocol is defined against. This server invokes it as a subprocess

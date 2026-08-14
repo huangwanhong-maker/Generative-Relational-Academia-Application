@@ -58,6 +58,13 @@ h2 {
   font-size: 0.85rem;
 }
 
+.bar .mark {
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-decoration: none;
+  color: var(--fg);
+}
+
 .bar nav { display: flex; gap: 1rem; }
 .bar nav a { text-decoration: none; color: var(--dim); }
 .bar nav a.on { color: var(--fg); text-decoration: underline; }

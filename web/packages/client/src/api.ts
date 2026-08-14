@@ -26,6 +26,8 @@ export interface Project {
   slug: string
   title: string
   openedBy: string
+  /** The account name behind that key here, when this host knows one. */
+  openedByName: string | null
   tier: string
   disclosure: string
   openedAt: string

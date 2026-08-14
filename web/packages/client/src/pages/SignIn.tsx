@@ -8,10 +8,12 @@
  */
 
 import { useState, type FormEvent } from 'react'
+import { Navigate, useNavigate } from 'react-router-dom'
 
-import { api, ApiError } from '../api'
+import { api, ApiError, type Me } from '../api'
 
-export function SignIn({ onSignedIn }: { onSignedIn: () => Promise<void> }) {
+export function SignIn({ me, onSignedIn }: { me: Me; onSignedIn: () => Promise<void> }) {
+  const navigate = useNavigate()
   const [name, setName] = useState('')
   const [password, setPassword] = useState('')
   const [problem, setProblem] = useState('')
@@ -24,6 +26,7 @@ export function SignIn({ onSignedIn }: { onSignedIn: () => Promise<void> }) {
     try {
       await api.signIn(name, password)
       await onSignedIn()
+      navigate('/projects')
     } catch (error) {
       setProblem(error instanceof ApiError ? error.message : String(error))
     } finally {
@@ -31,17 +34,18 @@ export function SignIn({ onSignedIn }: { onSignedIn: () => Promise<void> }) {
     }
   }
 
+  if (me.signedIn) return <Navigate to="/projects" replace />
+
   return (
     <>
       <header>
-        <h1>Generative Relational Academia</h1>
+        <h1>Sign in</h1>
         <p className="lede">
-          A place to record how an understanding changed — the question, the position, the
-          objection nobody has answered — and to hand that record to someone else intact.
+          An account is needed only to open a project of your own. Reading and searching what
+          people have shared here needs nothing.
         </p>
       </header>
 
-      <h2>Sign in</h2>
       <form className="signin" onSubmit={submit}>
         <label>
           Name
