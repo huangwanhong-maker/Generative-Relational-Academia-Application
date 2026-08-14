@@ -78,6 +78,23 @@ def sha256_hex(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
+#: The whitespace stripped from the ends of lines and of the document.
+#:
+#: Named explicitly, and deliberately ASCII only.  This began as ``rstrip()``
+#: with no argument, and the TypeScript implementation began as ``/\s+$/u`` --
+#: the obvious spelling in each language.  They disagree in both directions:
+#: Python treats U+001C..U+001F as whitespace and JavaScript does not, while
+#: JavaScript's ``\s`` matches U+FEFF and Python's does not.  Two
+#: implementations therefore computed two different identifiers for the same
+#: document, which is the failure C10 cannot survive.
+#:
+#: The set is ASCII because that is implementable identically anywhere without
+#: a Unicode table, and because a non-breaking or ideographic space at the end
+#: of a line is plausibly something the author typed on purpose.  Silently
+#: deleting it would alter what somebody wrote.
+TRAILING_WHITESPACE = " \t\n\v\f\r"
+
+
 def normalise_content(text: str) -> str:
     """Normalise state content before it is hashed and written.
 
@@ -86,8 +103,8 @@ def normalise_content(text: str) -> str:
     """
     text = unicodedata.normalize("NFC", text)
     text = text.replace("\r\n", "\n").replace("\r", "\n")
-    text = "\n".join(line.rstrip() for line in text.split("\n")).strip()
-    return text + "\n"
+    text = "\n".join(line.rstrip(TRAILING_WHITESPACE) for line in text.split("\n"))
+    return text.strip(TRAILING_WHITESPACE) + "\n"
 
 
 def state_id(content: str) -> str:

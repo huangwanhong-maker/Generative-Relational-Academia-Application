@@ -1,0 +1,20 @@
+{
+  "name": "gra",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Generative Relational Academia: a host for records, which is not their authority.",
+  "license": "MIT",
+  "workspaces": [
+    "packages/protocol",
+    "packages/server",
+    "packages/client"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "dev": "npm run dev --workspace @gra/server"
+  }
+}

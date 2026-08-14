@@ -1,0 +1,26 @@
+{
+  "name": "@gra/protocol",
+  "version": "0.1.0",
+  "description": "GRRP v0.1 in TypeScript: canonicalisation, identifiers, signing. Runs in a browser and on a server, because the browser is where signing belongs.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "watch": "vitest"
+  },
+  "dependencies": {
+    "@noble/curves": "^1.9.0",
+    "@noble/hashes": "^1.8.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.0",
+    "vitest": "^3.2.0"
+  }
+}
