@@ -23,12 +23,12 @@ export function MyProjects({ me }: { me: Me }) {
     void api.projects(true).then((reply) => setProjects(reply.projects))
   }, [])
 
-  const open = async (event: FormEvent) => {
+  const create = async (event: FormEvent) => {
     event.preventDefault()
     setBusy(true)
     setProblem('')
     try {
-      const project = await api.openProject(title, question)
+      const project = await api.createProject(title, question)
       navigate(`/p/${project.slug}`)
     } catch (error) {
       setProblem(error instanceof ApiError ? error.message : String(error))
@@ -58,8 +58,8 @@ export function MyProjects({ me }: { me: Me }) {
         }
       />
 
-      <h2>Open a project</h2>
-      <form onSubmit={open}>
+      <h2>Create a project</h2>
+      <form onSubmit={create}>
         <label>
           The question you are actually trying to answer
           <textarea
@@ -75,13 +75,14 @@ export function MyProjects({ me }: { me: Me }) {
         {problem && <p className="warn">{problem}</p>}
         <div className="row">
           <button type="submit" disabled={busy}>
-            {busy ? 'opening…' : 'open it'}
+            {busy ? 'creating…' : 'create it'}
           </button>
         </div>
         <div className="meta">
-          Write down what you are trying to find out, once, before the framing hardens and you
-          forget you chose it. It stays open until something answers it — there is no way to mark a
-          question done, because most of them never are.
+          A project is created; the question inside it is <em>opened</em>, and stays open until
+          something answers it. There is no way to mark a question done, because most of them
+          never are. Write down what you are trying to find out before the framing hardens and you
+          forget you chose it.
         </div>
       </form>
 

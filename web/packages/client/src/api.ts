@@ -10,6 +10,8 @@
 export interface Me {
   signedIn: boolean
   registrationOpen: boolean
+  /** Development aids are available. Off in production, deliberately. */
+  dev?: boolean
   name?: string
   party?: string
 }
@@ -76,6 +78,12 @@ export interface ProjectFile {
   modified: string
 }
 
+export interface Commit {
+  hash: string
+  when: string
+  subject: string
+}
+
 export class ApiError extends Error {}
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -105,7 +113,13 @@ export const api = {
 
   project: (slug: string) => request<Project>(`/api/projects/${encodeURIComponent(slug)}`),
 
-  openProject: (title: string, question: string) =>
+  /** Development only: the substrate's history, which is not the record. */
+  gitHistory: (slug: string) =>
+    request<{ isRepository: boolean; commits: Commit[]; note?: string }>(
+      `/api/projects/${encodeURIComponent(slug)}/git`,
+    ),
+
+  createProject: (title: string, question: string) =>
     request<Project>('/api/projects', {
       method: 'POST',
       body: JSON.stringify({ title, question }),

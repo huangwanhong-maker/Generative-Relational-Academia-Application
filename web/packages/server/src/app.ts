@@ -27,6 +27,7 @@ import { openDatabase, type Db } from './database.js'
 import { getProject, listProjects, reindex, search, widenDisclosure } from './projects.js'
 import {
   createRecord,
+  gitHistory,
   listFiles,
   readProjectFile,
   readTrajectoryDetail,
@@ -39,6 +40,14 @@ import { COOKIE, Sessions, type Session } from './sessions.js'
 export interface Options {
   /** Where records live. Files, and they are the record. */
   recordsRoot: string
+  /**
+   * Development aids: views of the substrate rather than of the record.
+   *
+   * Off in production on purpose. A commit is not a transition, and an
+   * interface that showed them side by side would teach that git is where the
+   * meaning lives. These exist to debug the thing, not to use it.
+   */
+  dev?: boolean
   /** Where the rebuildable index lives. `:memory:` for tests. */
   databaseFile: string
   sessions?: Sessions
@@ -82,11 +91,14 @@ export async function buildApp(options: Options): Promise<App> {
 
   // --- who am I ------------------------------------------------------------
 
+  const dev = options.dev ?? process.env['NODE_ENV'] !== 'production'
+
   fastify.get('/api/me', async (request) => {
-    if (!request.session) return { signedIn: false, registrationOpen: REGISTRATION_OPEN }
+    if (!request.session) return { signedIn: false, registrationOpen: REGISTRATION_OPEN, dev }
     return {
       signedIn: true,
       registrationOpen: REGISTRATION_OPEN,
+      dev,
       name: request.session.name,
       party: request.session.party,
     }
@@ -303,6 +315,24 @@ export async function buildApp(options: Options): Promise<App> {
     } catch (error) {
       return reply.code(400).send({ error: String((error as Error).message) })
     }
+  })
+
+  /**
+   * The project's git history. Development only.
+   *
+   * A commit is not a transition. git supplies append-only history and the
+   * transport by which a record is copied elsewhere; it supplies none of the
+   * meaning, and a record in a directory that was never a repository is
+   * exactly as valid. This is here to see what the substrate did, and it is
+   * off in production so that nobody comes to read it as the record.
+   */
+  fastify.get('/api/projects/:slug/git', async (request, reply) => {
+    if (!dev) return reply.code(404).send({ error: 'no such route' })
+    const { slug } = request.params as { slug: string }
+    if (!(await visible(slug, request))) {
+      return reply.code(404).send({ error: 'no project by that name here' })
+    }
+    return gitHistory(options.recordsRoot, slug)
   })
 
   // --- search --------------------------------------------------------------

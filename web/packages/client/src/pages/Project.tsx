@@ -14,6 +14,7 @@ import { useParams, useSearchParams } from 'react-router-dom'
 
 import { api, ApiError, type Me, type Project } from '../api'
 import { Files } from './Files'
+import { GitHistory } from './GitHistory'
 import { Questions } from './Questions'
 
 const TABS = [
@@ -67,7 +68,9 @@ export function ProjectPage({ me }: { me: Me }) {
         ))}
       </div>
 
-      {tab === 'overview' && <Overview project={project} mine={mine} onWiden={widen} />}
+      {tab === 'overview' && (
+        <Overview project={project} mine={mine} dev={Boolean(me.dev)} onWiden={widen} />
+      )}
       {tab === 'questions' && <Questions project={project} />}
       {tab === 'files' && <Files project={project} me={me} />}
     </>
@@ -77,10 +80,12 @@ export function ProjectPage({ me }: { me: Me }) {
 function Overview({
   project,
   mine,
+  dev,
   onWiden,
 }: {
   project: Project
   mine: boolean
+  dev: boolean
   onWiden: () => Promise<void>
 }) {
   const standing = project.trajectories.filter((trajectory) => trajectory.openCount > 0)
@@ -137,6 +142,8 @@ function Overview({
         Bringing those to this page is the next piece of work; nothing recorded at the terminal is
         invisible here, it only needs a reindex.
       </div>
+
+      {dev && <GitHistory slug={project.slug} />}
     </>
   )
 }

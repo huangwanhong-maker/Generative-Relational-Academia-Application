@@ -17,8 +17,16 @@
 
 import { spawn } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { readFileSync, readdirSync, existsSync, mkdirSync, statSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs'
+import { join, resolve } from 'node:path'
 
 import { parse as parseYaml } from 'yaml'
 
@@ -72,10 +80,27 @@ export async function createRecord(
 ): Promise<GrrpResult> {
   const dir = join(root, slug)
   mkdirSync(dir, { recursive: true })
+  // Its own repository, before grrp touches it. Version control is a
+  // substrate here and not a requirement -- everything works in a directory
+  // that is not one -- but a project nested inside another repository would
+  // have its transitions committed into somebody else's history, and `git log`
+  // run inside it would answer with that history instead of its own.
+  await runGit(['init', '-q'], dir)
   const started = await runGrrp(['init'], dir)
-  if (!started.ok) return started
+  if (!started.ok) {
+    rmSync(dir, { recursive: true, force: true })
+    return started
+  }
   const opened = await runGrrp(['new', question, '--title', slug], dir)
-  if (opened.ok) writeHostFacts(root, slug, { openedBy, disclosure: 'private' })
+  if (!opened.ok) {
+    // A half-built project is worse than none: it holds the name, it is not a
+    // valid record, and the person who tried to create it has no way to say
+    // so. Nothing was disclosed and nothing was recorded, so removing it takes
+    // nothing from anybody -- which is the only reason it is safe to do.
+    rmSync(dir, { recursive: true, force: true })
+    return opened
+  }
+  writeHostFacts(root, slug, { openedBy, disclosure: 'private' })
   return opened
 }
 
@@ -449,4 +474,83 @@ export async function trajectoryGraph(
 ): Promise<string | null> {
   const drawn = await runGrrp(['graph', trajId], join(root, slug))
   return drawn.ok && drawn.stdout.includes('<svg') ? drawn.stdout : null
+}
+
+
+// --- git, which is a substrate and not the record ----------------------------
+
+/**
+ * A commit is **not** a transition, and this is why the view of them is a
+ * development tool rather than a feature.
+ *
+ * git supplies append-only history and the transport by which a complete
+ * record is copied elsewhere. It supplies none of the meaning: the record is
+ * the YAML and the state files, the identifiers are hashes of their bytes, and
+ * a record in a directory that was never a repository is exactly as valid.
+ * Showing commits beside transitions would teach the opposite, which is why
+ * this is behind a flag and labelled.
+ */
+export interface Commit {
+  hash: string
+  when: string
+  subject: string
+}
+
+function runGit(args: string[], cwd: string): Promise<GrrpResult> {
+  return new Promise((resolve) => {
+    const child = spawn('git', args, { cwd, env: process.env, shell: false })
+    let stdout = ''
+    let stderr = ''
+    child.stdout.on('data', (chunk) => (stdout += chunk))
+    child.stderr.on('data', (chunk) => (stderr += chunk))
+    child.on('error', (error) => resolve({ ok: false, code: -1, stdout, stderr: error.message }))
+    child.on('close', (code) => resolve({ ok: code === 0, code: code ?? -1, stdout, stderr }))
+  })
+}
+
+/**
+ * The project's own commits, or nothing.
+ *
+ * The guard is the whole of the difficulty. `git log` inside a directory that
+ * is not a repository answers with the history of whichever repository
+ * encloses it, so a project sitting inside another checkout would report that
+ * one's commits as its own. This asks git where the repository root actually
+ * is and refuses unless it is this project.
+ */
+export async function gitHistory(
+  root: string,
+  slug: string,
+  limit = 50,
+): Promise<{ isRepository: boolean; commits: Commit[]; note?: string }> {
+  const dir = resolve(join(root, slug))
+  const top = await runGit(['rev-parse', '--show-toplevel'], dir)
+  if (!top.ok) {
+    return { isRepository: false, commits: [], note: 'This project is not a git repository.' }
+  }
+  if (resolve(top.stdout.trim()) !== dir) {
+    return {
+      isRepository: false,
+      commits: [],
+      note:
+        'This project is not a git repository of its own. It sits inside one, whose history ' +
+        'is not shown here because it is not this project.',
+    }
+  }
+
+  const log = await runGit(
+    ['log', `--max-count=${limit}`, '--date=iso-strict', '--format=%H%x1f%ad%x1f%s'],
+    dir,
+  )
+  if (!log.ok) return { isRepository: true, commits: [], note: 'No commits yet.' }
+
+  return {
+    isRepository: true,
+    commits: log.stdout
+      .split('\n')
+      .filter(Boolean)
+      .map((line) => {
+        const [hash = '', when = '', subject = ''] = line.split('\u001f')
+        return { hash, when, subject }
+      }),
+  }
 }

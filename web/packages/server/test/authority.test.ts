@@ -47,7 +47,10 @@ beforeEach(async () => {
 
 afterEach(async () => {
   await app.fastify.close()
-  rmSync(root, { recursive: true, force: true })
+  // Windows keeps a directory locked for a moment after the git process that
+  // was using it exits, so removal retries rather than failing the test that
+  // just passed.
+  rmSync(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 })
 })
 
 describe('the door', () => {
@@ -55,7 +58,7 @@ describe('the door', () => {
     await createAccount(app.db, { name: 'ada', password: 'a-good-enough-password', party: generate().party })
     const reply = await app.fastify.inject({ method: 'GET', url: '/api/me' })
 
-    expect(reply.json()).toEqual({ signedIn: false, registrationOpen: false })
+    expect(reply.json()).toEqual({ signedIn: false, registrationOpen: false, dev: true })
     // There is no route that lists accounts, and that is the point.
     const listing = await app.fastify.inject({ method: 'GET', url: '/api/users' })
     expect(listing.statusCode).toBe(404)
@@ -428,5 +431,88 @@ describe('one question, in full', () => {
       const reply = await app.fastify.inject({ method: 'GET', url })
       expect(reply.statusCode, url).toBe(404)
     }
+  })
+})
+
+
+describe('git is a substrate, not the record', () => {
+  it('gives a project its own repository, so its history is its own', async () => {
+    const session = await signIn()
+    await app.fastify.inject({
+      method: 'POST',
+      url: '/api/projects',
+      headers: session.headers,
+      payload: { title: 'trust', question: 'A question.' },
+    })
+
+    expect(existsSync(join(root, 'records', 'trust', '.git'))).toBe(true)
+
+    const reply = await app.fastify.inject({
+      method: 'GET',
+      url: '/api/projects/trust/git',
+      headers: session.headers,
+    })
+    expect(reply.json().isRepository).toBe(true)
+    expect(reply.json().commits.length).toBeGreaterThan(0)
+  })
+
+  it('refuses rather than reporting the enclosing repository as its own', async () => {
+    // A project directory that is not a repository. `git log` run inside it
+    // answers with whatever repository encloses it, which would be somebody
+    // else's history presented as this project's.
+    const session = await signIn()
+    await app.fastify.inject({
+      method: 'POST',
+      url: '/api/projects',
+      headers: session.headers,
+      payload: { title: 'trust', question: 'A question.' },
+    })
+    rmSync(join(root, 'records', 'trust', '.git'), { recursive: true, force: true })
+
+    const reply = await app.fastify.inject({
+      method: 'GET',
+      url: '/api/projects/trust/git',
+      headers: session.headers,
+    })
+
+    expect(reply.json().isRepository).toBe(false)
+    expect(reply.json().commits).toEqual([])
+  })
+
+  it('is absent entirely when this is not a development server', async () => {
+    const production = await buildApp({
+      recordsRoot: join(root, 'records'),
+      databaseFile: ':memory:',
+      dev: false,
+    })
+    try {
+      const reply = await production.fastify.inject({ method: 'GET', url: '/api/projects/x/git' })
+      expect(reply.statusCode).toBe(404)
+      expect((await production.fastify.inject({ method: 'GET', url: '/api/me' })).json().dev).toBe(
+        false,
+      )
+    } finally {
+      await production.fastify.close()
+    }
+  })
+
+  it('leaves nothing behind when a project cannot be created', async () => {
+    const session = await signIn()
+    await app.fastify.inject({
+      method: 'POST',
+      url: '/api/projects',
+      headers: session.headers,
+      payload: { title: 'trust', question: 'A question.' },
+    })
+    // A second attempt at the same name is refused before anything is touched.
+    const again = await app.fastify.inject({
+      method: 'POST',
+      url: '/api/projects',
+      headers: session.headers,
+      payload: { title: 'trust', question: 'Another question.' },
+    })
+
+    expect(again.statusCode).toBe(409)
+    expect(existsSync(join(root, 'records', 'trust', '.grrp', 'profile.yaml'))).toBe(true)
   })
 })

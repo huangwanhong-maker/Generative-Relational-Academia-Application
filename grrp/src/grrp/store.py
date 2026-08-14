@@ -56,8 +56,34 @@ def now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
 
 
+def long_path(path: Path) -> Path:
+    """The same path, in a form Windows will actually open.
+
+    A state file is named for the 64 hex digits of its hash, four directories
+    below the record, which is itself below wherever the user keeps their work.
+    Windows refuses any path over 260 characters unless it is given in
+    extended-length form, and it refuses it with ``FileNotFoundError`` -- which
+    reads as "your record is missing" rather than "your path is long", and sent
+    me looking in the wrong place for an hour.
+
+    This is not a Windows nicety.  Records must be creatable wherever a person
+    keeps their work, and a tool that fails on a deep directory is a tool that
+    fails for the people least able to diagnose it.  Elsewhere this returns the
+    path untouched.
+    """
+    if os.name != "nt":
+        return path
+    absolute = os.path.abspath(str(path))
+    if absolute.startswith("\\\\?\\"):
+        return Path(absolute)
+    if absolute.startswith("\\\\"):
+        # A UNC share takes a different prefix from a drive letter.
+        return Path("\\\\?\\UNC" + absolute[1:])
+    return Path("\\\\?\\" + absolute)
+
+
 def read_yaml(path: Path) -> dict:
-    with path.open("r", encoding="utf-8") as handle:
+    with long_path(path).open("r", encoding="utf-8") as handle:
         data = _yaml.load(handle)
     return dict(data) if data else {}
 
@@ -70,10 +96,10 @@ def write_yaml(path: Path, data: dict) -> None:
     for byte the record written on another, and identical records would not
     compare equal across a bundle.
     """
-    path.parent.mkdir(parents=True, exist_ok=True)
+    long_path(path.parent).mkdir(parents=True, exist_ok=True)
     buffer = io.StringIO()
     _yaml.dump(data, buffer)
-    path.write_bytes(buffer.getvalue().encode("utf-8"))
+    long_path(path).write_bytes(buffer.getvalue().encode("utf-8"))
 
 
 def topological(records: list[dict]) -> list[dict]:
@@ -276,24 +302,24 @@ class Repo:
         content = canonical.normalise_content(text)
         sid = canonical.state_id(content)
         path = self.state_path(traj_id, sid)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        if not path.exists():
+        long_path(path.parent).mkdir(parents=True, exist_ok=True)
+        if not long_path(path).exists():
             # Bytes, never text mode. A state's identifier is the hash of the
             # bytes of its file, so that anyone holding the file can check it
             # with sha256sum and no knowledge of this tool. Text mode would
             # translate newlines on the way out, leaving a file whose name is a
             # hash of something the file no longer contains.
-            path.write_bytes(content.encode("utf-8"))
+            long_path(path).write_bytes(content.encode("utf-8"))
         return sid, path
 
     def read_state(self, traj_id: str, sid: str) -> str | None:
         """Content of a state, or None where it has been redacted or is sealed."""
         path = self.state_path(traj_id, sid)
-        if not path.is_file():
+        if not long_path(path).is_file():
             return None
         # Read the bytes, not the text: text mode would translate CRLF back to
         # LF and quietly repair a corrupted file rather than reveal it.
-        return path.read_bytes().decode("utf-8")
+        return long_path(path).read_bytes().decode("utf-8")
 
     def resolve_state(self, traj_id: str | None, ref: str) -> tuple[str, str]:
         """Resolve a state reference to (trajectory id, state id).
