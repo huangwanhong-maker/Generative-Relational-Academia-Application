@@ -15,6 +15,8 @@ import { listRecordSlugs, readHostFacts, readProject, writeHostFacts } from './r
 export interface Listed {
   slug: string
   title: string
+  /** What the project says about itself. A README, not a database column. */
+  description: string
   openedBy: string
   /**
    * The account name behind that key, when this host knows one.
@@ -63,6 +65,7 @@ export async function reindex(db: Db, root: string): Promise<number> {
     const row = {
       slug,
       title: onDisk.title,
+      description: onDisk.description,
       openedBy: host?.openedBy ?? onDisk.openedBy,
       tier: onDisk.tier,
       disclosure: host?.disclosure ?? existing?.disclosure ?? 'private',
@@ -138,6 +141,7 @@ async function withTrajectories(db: Db, row: typeof projects.$inferSelect): Prom
   return {
     slug: row.slug,
     title: row.title,
+    description: row.description,
     openedBy: row.openedBy,
     openedByName: opener?.name ?? null,
     tier: row.tier,

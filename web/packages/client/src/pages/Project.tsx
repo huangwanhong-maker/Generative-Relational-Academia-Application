@@ -71,7 +71,9 @@ export function ProjectPage({ me }: { me: Me }) {
       {tab === 'overview' && (
         <Overview project={project} mine={mine} dev={Boolean(me.dev)} onWiden={widen} />
       )}
-      {tab === 'questions' && <Questions project={project} />}
+      {tab === 'questions' && (
+        <Questions project={project} mine={mine} onOpened={setProject} />
+      )}
       {tab === 'files' && <Files project={project} me={me} />}
     </>
   )
@@ -92,7 +94,9 @@ function Overview({
 
   return (
     <>
-      <h2>What this project is trying to find out</h2>
+      {project.description && <p className="body">{project.description.trim()}</p>}
+
+      <h2>Questions open here</h2>
       {project.trajectories.length ? (
         project.trajectories.map((trajectory) => (
           <p className="framing" key={trajectory.trajId}>
@@ -100,7 +104,10 @@ function Overview({
           </p>
         ))
       ) : (
-        <div className="note">No questions opened yet.</div>
+        <div className="note">
+          None yet. A project starts empty, and nothing can be recorded until a question is open —
+          every act changes an identified state, and the question is the first state there is.
+        </div>
       )}
 
       <h2>Standing unanswered</h2>

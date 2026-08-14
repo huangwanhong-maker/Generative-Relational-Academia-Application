@@ -28,6 +28,15 @@ function scratch(): string {
   return mkdtempSync(join(tmpdir(), 'gra-'))
 }
 
+async function ask(session: { headers: { cookie: string } }, slug: string, question: string) {
+  return app.fastify.inject({
+    method: 'POST',
+    url: `/api/projects/${slug}/questions`,
+    headers: session.headers,
+    payload: { question },
+  })
+}
+
 async function signIn(name = 'ada', password = 'a-good-enough-password') {
   const keypair = generate()
   await createAccount(app.db, { name, password, party: keypair.party })
@@ -127,12 +136,12 @@ describe('records are files, and the database is not the record', () => {
       method: 'POST',
       url: '/api/projects',
       headers: session.headers,
-      payload: { title: 'trust', question: 'Is trust a property between individuals?' },
+      payload: { title: 'trust' },
     })
 
     expect(reply.statusCode, reply.body).toBe(201)
     expect(existsSync(join(root, 'records', 'trust', '.grrp', 'profile.yaml'))).toBe(true)
-    expect(reply.json().trajectories[0].question).toBe('Is trust a property between individuals?')
+    expect(reply.json().trajectories).toEqual([])
   })
 
   it('rebuilds the whole index from the files, unchanged', async () => {
@@ -141,7 +150,7 @@ describe('records are files, and the database is not the record', () => {
       method: 'POST',
       url: '/api/projects',
       headers: session.headers,
-      payload: { title: 'trust', question: 'Is trust a property between individuals?' },
+      payload: { title: 'trust' },
     })
     const before = (await app.fastify.inject({ method: 'GET', url: '/api/projects', headers: session.headers })).json()
 
@@ -164,7 +173,7 @@ describe('what the interface refuses to compute', () => {
         method: 'POST',
         url: '/api/projects',
         headers: session.headers,
-        payload: { title, question: `A question about ${title}.` },
+        payload: { title },
       })
     }
     const listing = (await app.fastify.inject({ method: 'GET', url: '/api/projects', headers: session.headers })).json()
@@ -178,7 +187,7 @@ describe('what the interface refuses to compute', () => {
       method: 'POST',
       url: '/api/projects',
       headers: session.headers,
-      payload: { title: 'trust', question: 'A question.' },
+      payload: { title: 'trust' },
     })
     const body = (await app.fastify.inject({ method: 'GET', url: '/api/projects', headers: session.headers })).body
 
@@ -200,7 +209,7 @@ describe('what the interface refuses to compute', () => {
       method: 'POST',
       url: '/api/projects',
       headers: session.headers,
-      payload: { title: 'trust', question: 'A question.' },
+      payload: { title: 'trust' },
     })
 
     for (const url of ['/api/projects/trust/unpublish', '/api/projects/trust/hide']) {
@@ -222,7 +231,7 @@ describe('what the interface refuses to compute', () => {
       method: 'POST',
       url: '/api/projects',
       headers: session.headers,
-      payload: { title: 'trust', question: 'A question.' },
+      payload: { title: 'trust' },
     })
     const replies = await Promise.all([
       app.fastify.inject({ method: 'GET', url: '/api/projects', headers: session.headers }),
@@ -241,7 +250,7 @@ describe('disclosure widens and does not narrow', () => {
       method: 'POST',
       url: '/api/projects',
       headers: session.headers,
-      payload: { title: 'trust', question: 'A question.' },
+      payload: { title: 'trust' },
     })
 
     const anonymous = (await app.fastify.inject({ method: 'GET', url: '/api/projects' })).json()
@@ -258,7 +267,7 @@ describe('disclosure widens and does not narrow', () => {
       method: 'POST',
       url: '/api/projects',
       headers: session.headers,
-      payload: { title: 'trust', question: 'A question.' },
+      payload: { title: 'trust' },
     })
     await app.fastify.inject({
       method: 'POST',
@@ -280,8 +289,9 @@ describe('search', () => {
         method: 'POST',
         url: '/api/projects',
         headers: session.headers,
-        payload: { title, question: `Is trust a property of ${title}?` },
+        payload: { title },
       })
+      await ask(session, title, `Is trust a property of ${title}?`)
     }
     const hits = (
       await app.fastify.inject({ method: 'GET', url: '/api/search?q=trust', headers: session.headers })
@@ -297,7 +307,7 @@ describe('search', () => {
       method: 'POST',
       url: '/api/projects',
       headers: session.headers,
-      payload: { title: 'trust', question: 'Is trust a property between individuals?' },
+      payload: { title: 'trust' },
     })
 
     const anonymous = (await app.fastify.inject({ method: 'GET', url: '/api/search?q=trust' })).json()
@@ -313,16 +323,17 @@ describe('material is not evidence', () => {
       method: 'POST',
       url: '/api/projects',
       headers: session.headers,
-      payload: { title: 'trust', question: 'Is trust a property between individuals?' },
+      payload: { title: 'trust' },
     })
-    return session
+    const opened = await ask(session, 'trust', 'Is trust a property between individuals?')
+    // grrp names the directory from the question, not from the project.
+    const trajId: string = opened.json().trajectories[0].trajId
+    return { session, transitionsDir: join(root, 'records', 'trust', 'trajectories', trajId.replace(/^traj:/, ''), 'transitions') }
   }
 
   it('stores a file and writes no transition', async () => {
-    const session = await openTrust()
-    const before = readdirSync(
-      join(root, 'records', 'trust', 'trajectories', 'trust', 'transitions'),
-    )
+    const { session, transitionsDir } = await openTrust()
+    const before = readdirSync(transitionsDir)
 
     const stored = await app.fastify.inject({
       method: 'POST',
@@ -335,13 +346,11 @@ describe('material is not evidence', () => {
     // The whole point: nothing entered the log. C1 -- no operation exists
     // merely so that a record exists, and a file is not a change in anybody's
     // understanding until a transition cites it.
-    expect(
-      readdirSync(join(root, 'records', 'trust', 'trajectories', 'trust', 'transitions')),
-    ).toEqual(before)
+    expect(readdirSync(transitionsDir)).toEqual(before)
   })
 
   it('returns the digest a transition would cite, over the bytes on disk', async () => {
-    const session = await openTrust()
+    const { session } = await openTrust()
     const bytes = Buffer.from('Field notes.')
     const stored = await app.fastify.inject({
       method: 'POST',
@@ -359,7 +368,7 @@ describe('material is not evidence', () => {
   })
 
   it('refuses a name that would escape the files directory', async () => {
-    const session = await openTrust()
+    const { session } = await openTrust()
     for (const name of ['../.grrp/profile.yaml', '.gra-host.json', 'a/b.txt', '..']) {
       const reply = await app.fastify.inject({
         method: 'POST',
@@ -395,12 +404,14 @@ describe('one question, in full', () => {
       method: 'POST',
       url: '/api/projects',
       headers: session.headers,
-      payload: { title: 'trust', question: 'Is trust a property between individuals?' },
+      payload: { title: 'trust' },
     })
+    const opened = await ask(session, 'trust', 'Is trust a property between individuals?')
+    const trajId = opened.json().trajectories[0].trajId
 
     const reply = await app.fastify.inject({
       method: 'GET',
-      url: '/api/projects/trust/trajectories/traj:trust',
+      url: `/api/projects/trust/trajectories/${encodeURIComponent(trajId)}`,
       headers: session.headers,
     })
 
@@ -424,10 +435,10 @@ describe('one question, in full', () => {
       method: 'POST',
       url: '/api/projects',
       headers: session.headers,
-      payload: { title: 'trust', question: 'A question.' },
+      payload: { title: 'trust' },
     })
 
-    for (const url of ['/api/projects/trust/trajectories/traj:trust', '/api/projects/trust/files']) {
+    for (const url of ['/api/projects/trust/trajectories/traj:x', '/api/projects/trust/files']) {
       const reply = await app.fastify.inject({ method: 'GET', url })
       expect(reply.statusCode, url).toBe(404)
     }
@@ -442,7 +453,7 @@ describe('git is a substrate, not the record', () => {
       method: 'POST',
       url: '/api/projects',
       headers: session.headers,
-      payload: { title: 'trust', question: 'A question.' },
+      payload: { title: 'trust' },
     })
 
     expect(existsSync(join(root, 'records', 'trust', '.git'))).toBe(true)
@@ -465,7 +476,7 @@ describe('git is a substrate, not the record', () => {
       method: 'POST',
       url: '/api/projects',
       headers: session.headers,
-      payload: { title: 'trust', question: 'A question.' },
+      payload: { title: 'trust' },
     })
     rmSync(join(root, 'records', 'trust', '.git'), { recursive: true, force: true })
 
@@ -502,17 +513,133 @@ describe('git is a substrate, not the record', () => {
       method: 'POST',
       url: '/api/projects',
       headers: session.headers,
-      payload: { title: 'trust', question: 'A question.' },
+      payload: { title: 'trust' },
     })
     // A second attempt at the same name is refused before anything is touched.
     const again = await app.fastify.inject({
       method: 'POST',
       url: '/api/projects',
       headers: session.headers,
-      payload: { title: 'trust', question: 'Another question.' },
+      payload: { title: 'trust' },
     })
 
     expect(again.statusCode).toBe(409)
     expect(existsSync(join(root, 'records', 'trust', '.grrp', 'profile.yaml'))).toBe(true)
+  })
+})
+
+
+describe('a project is a container; a question anchors a line of work', () => {
+  it('creates a project with no question, and no question is invented', async () => {
+    const session = await signIn()
+    const reply = await app.fastify.inject({
+      method: 'POST',
+      url: '/api/projects',
+      headers: session.headers,
+      payload: { title: 'trust', description: 'Notes on trust and asymmetry.' },
+    })
+
+    expect(reply.statusCode, reply.body).toBe(201)
+    // Empty on purpose. Nothing can be recorded here yet, and that is the
+    // honest state rather than a reason to demand a question up front.
+    expect(reply.json().trajectories).toEqual([])
+    expect(reply.json().description).toContain('Notes on trust')
+  })
+
+  it('keeps the description in a file, so it travels with the record', async () => {
+    const session = await signIn()
+    await app.fastify.inject({
+      method: 'POST',
+      url: '/api/projects',
+      headers: session.headers,
+      payload: { title: 'trust', description: 'Notes on trust and asymmetry.' },
+    })
+
+    const readme = join(root, 'records', 'trust', 'README.md')
+    expect(existsSync(readme)).toBe(true)
+    expect(readFileSync(readme).toString('utf-8').trim()).toBe('Notes on trust and asymmetry.')
+
+    // And it survives the index being thrown away, because the file is the
+    // original and the column is the copy.
+    await app.fastify.inject({ method: 'POST', url: '/api/reindex', headers: session.headers })
+    const after = await app.fastify.inject({
+      method: 'GET',
+      url: '/api/projects/trust',
+      headers: session.headers,
+    })
+    expect(after.json().description).toContain('Notes on trust')
+  })
+
+  it('opens a question separately, and that is what starts a trajectory', async () => {
+    const session = await signIn()
+    await app.fastify.inject({
+      method: 'POST',
+      url: '/api/projects',
+      headers: session.headers,
+      payload: { title: 'trust' },
+    })
+
+    const opened = await app.fastify.inject({
+      method: 'POST',
+      url: '/api/projects/trust/questions',
+      headers: session.headers,
+      payload: { question: 'Is trust a property between individuals?' },
+    })
+
+    expect(opened.statusCode, opened.body).toBe(201)
+    expect(opened.json().trajectories).toHaveLength(1)
+    expect(opened.json().trajectories[0].question).toBe(
+      'Is trust a property between individuals?',
+    )
+  })
+
+  it('holds several questions in one project', async () => {
+    const session = await signIn()
+    await app.fastify.inject({
+      method: 'POST',
+      url: '/api/projects',
+      headers: session.headers,
+      payload: { title: 'trust' },
+    })
+    for (const question of ['Is trust a property between individuals?', 'What does it select for?']) {
+      await app.fastify.inject({
+        method: 'POST',
+        url: '/api/projects/trust/questions',
+        headers: session.headers,
+        payload: { question },
+      })
+    }
+
+    const project = await app.fastify.inject({
+      method: 'GET',
+      url: '/api/projects/trust',
+      headers: session.headers,
+    })
+    expect(project.json().trajectories).toHaveLength(2)
+  })
+
+  it('refuses a project with no name, and a question with no words', async () => {
+    const session = await signIn()
+    const nameless = await app.fastify.inject({
+      method: 'POST',
+      url: '/api/projects',
+      headers: session.headers,
+      payload: { description: 'no name' },
+    })
+    expect(nameless.statusCode).toBe(400)
+
+    await app.fastify.inject({
+      method: 'POST',
+      url: '/api/projects',
+      headers: session.headers,
+      payload: { title: 'trust' },
+    })
+    const empty = await app.fastify.inject({
+      method: 'POST',
+      url: '/api/projects/trust/questions',
+      headers: session.headers,
+      payload: { question: '   ' },
+    })
+    expect(empty.statusCode).toBe(400)
   })
 })

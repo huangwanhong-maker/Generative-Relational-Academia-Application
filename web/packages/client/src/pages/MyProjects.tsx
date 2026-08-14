@@ -1,20 +1,24 @@
 /**
- * Your projects, and the way to open one.
+ * Your projects, and the way to create one.
  *
- * The only page that needs an account. Everything else on this server can be
- * read signed out.
+ * Creating asks for a name and, if you want, a description. It does not ask
+ * for a question: a project is a container, and a question anchors a line of
+ * work *inside* it. Asking here would conflate the two, and would also imply
+ * that a project is one enquiry — which is exactly the shape this is not.
  */
 
 import { useEffect, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import { api, ApiError, type Me, type Project } from '../api'
+import { Modal } from '../Modal'
 import { ProjectList } from './ProjectList'
 
 export function MyProjects({ me }: { me: Me }) {
   const [projects, setProjects] = useState<Project[] | null>(null)
+  const [creating, setCreating] = useState(false)
   const [title, setTitle] = useState('')
-  const [question, setQuestion] = useState('')
+  const [description, setDescription] = useState('')
   const [problem, setProblem] = useState('')
   const [busy, setBusy] = useState(false)
   const navigate = useNavigate()
@@ -28,7 +32,7 @@ export function MyProjects({ me }: { me: Me }) {
     setBusy(true)
     setProblem('')
     try {
-      const project = await api.createProject(title, question)
+      const project = await api.createProject(title, description)
       navigate(`/p/${project.slug}`)
     } catch (error) {
       setProblem(error instanceof ApiError ? error.message : String(error))
@@ -42,52 +46,58 @@ export function MyProjects({ me }: { me: Me }) {
       <header>
         <h1>Your projects</h1>
         <p className="lede">
-          A project holds one or more questions and everything that happened to them. Underneath it
-          is a directory of plain files — readable without this page, and yours to take anywhere
-          without asking anyone.
+          A project holds the questions you are working on and the material they draw on.
+          Underneath it is a directory of plain files — readable without this page, and yours to
+          take anywhere without asking anyone.
         </p>
       </header>
 
-      <h2>Projects you have opened</h2>
+      <div className="row">
+        <button onClick={() => setCreating(true)}>create a project</button>
+      </div>
+
       <ProjectList
         projects={projects ?? []}
-        empty={
-          projects === null
-            ? 'reading…'
-            : 'Nothing yet. A project starts with a question you are actually trying to answer.'
-        }
+        empty={projects === null ? 'reading…' : 'Nothing yet.'}
       />
 
-      <h2>Create a project</h2>
-      <form onSubmit={create}>
-        <label>
-          The question you are actually trying to answer
-          <textarea
-            value={question}
-            onChange={(event) => setQuestion(event.target.value)}
-            required
-          />
-        </label>
-        <label>
-          A short name
-          <input value={title} onChange={(event) => setTitle(event.target.value)} required />
-        </label>
-        {problem && <p className="warn">{problem}</p>}
-        <div className="row">
-          <button type="submit" disabled={busy}>
-            {busy ? 'creating…' : 'create it'}
-          </button>
-        </div>
-        <div className="meta">
-          A project is created; the question inside it is <em>opened</em>, and stays open until
-          something answers it. There is no way to mark a question done, because most of them
-          never are. Write down what you are trying to find out before the framing hardens and you
-          forget you chose it.
-        </div>
-      </form>
+      <Modal open={creating} title="Create a project" onClose={() => setCreating(false)}>
+        <form onSubmit={create}>
+          <label>
+            Name
+            <input
+              autoFocus
+              value={title}
+              onChange={(event) => setTitle(event.target.value)}
+              required
+            />
+          </label>
+          <label>
+            Description <span className="meta">— optional</span>
+            <textarea
+              value={description}
+              onChange={(event) => setDescription(event.target.value)}
+            />
+          </label>
+          {problem && <p className="warn">{problem}</p>}
+          <div className="row">
+            <button type="submit" disabled={busy}>
+              {busy ? 'creating…' : 'create it'}
+            </button>
+            <button type="button" className="quiet" onClick={() => setCreating(false)}>
+              cancel
+            </button>
+          </div>
+          <div className="meta">
+            A project starts empty. You open questions inside it, and each one stays open until
+            something answers it — there is no way to mark a question done, because most of them
+            never are.
+          </div>
+        </form>
+      </Modal>
 
       <div className="note">
-        A project you open is not shared on this server until you say so, and sharing only ever
+        A project you create is not shared on this server until you say so, and sharing only ever
         widens: there is no unshare, here or anywhere in the design. You sign as{' '}
         <span className="id">{me.party}</span>.
       </div>

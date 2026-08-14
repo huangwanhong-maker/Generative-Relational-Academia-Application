@@ -206,3 +206,28 @@ footer {
 .scroll img { max-width: none; display: block; }
 
 input[type='file'] { border: none; padding: 0; background: transparent; }
+
+/* Dialogs, using the element the platform already has: focus trapping, Escape
+   to close and the top layer come free, and none of them survive being
+   reimplemented. */
+dialog {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--card);
+  color: var(--fg);
+  padding: 1.1rem 1.3rem 1.4rem;
+  width: min(34rem, calc(100vw - 2rem));
+  box-shadow: 0 12px 40px rgb(0 0 0 / 0.18);
+}
+
+dialog::backdrop { background: rgb(0 0 0 / 0.4); }
+
+.dialog-head {
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+  padding-bottom: 0.6rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.dialog-head button { margin-left: auto; padding: 0 0.4rem; font-size: 1.1rem; line-height: 1; }

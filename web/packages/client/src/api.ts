@@ -27,6 +27,8 @@ export interface Trajectory {
 export interface Project {
   slug: string
   title: string
+  /** What the project says about itself. A README, not a database column. */
+  description: string
   openedBy: string
   /** The account name behind that key here, when this host knows one. */
   openedByName: string | null
@@ -119,10 +121,17 @@ export const api = {
       `/api/projects/${encodeURIComponent(slug)}/git`,
     ),
 
-  createProject: (title: string, question: string) =>
+  createProject: (title: string, description = '') =>
     request<Project>('/api/projects', {
       method: 'POST',
-      body: JSON.stringify({ title, question }),
+      body: JSON.stringify({ title, description }),
+    }),
+
+  /** Open a question, which is what actually starts a line of work. */
+  openQuestion: (slug: string, question: string) =>
+    request<Project>(`/api/projects/${encodeURIComponent(slug)}/questions`, {
+      method: 'POST',
+      body: JSON.stringify({ question }),
     }),
 
   /** Widens. There is no counterpart that narrows, and there will not be. */

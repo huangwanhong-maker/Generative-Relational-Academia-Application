@@ -32,6 +32,7 @@ const TABLES = [
      id INTEGER PRIMARY KEY AUTOINCREMENT,
      slug TEXT NOT NULL,
      title TEXT NOT NULL,
+     description TEXT NOT NULL DEFAULT '',
      opened_by TEXT NOT NULL,
      tier TEXT NOT NULL,
      disclosure TEXT NOT NULL,

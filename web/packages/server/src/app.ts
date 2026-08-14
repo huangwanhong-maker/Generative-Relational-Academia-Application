@@ -28,6 +28,7 @@ import { getProject, listProjects, reindex, search, widenDisclosure } from './pr
 import {
   createRecord,
   gitHistory,
+  openQuestion,
   listFiles,
   readProjectFile,
   readTrajectoryDetail,
@@ -180,26 +181,50 @@ export async function buildApp(options: Options): Promise<App> {
   })
 
   fastify.post('/api/projects', { onRequest: requireSession }, async (request, reply) => {
-    const body = request.body as { title?: string; question?: string }
+    const body = request.body as { title?: string; description?: string }
     const title = (body.title ?? '').trim()
-    const question = (body.question ?? '').trim()
-    if (!title || !question) {
-      return reply.code(400).send({ error: 'a project needs a name and a question' })
-    }
+    if (!title) return reply.code(400).send({ error: 'a project needs a name' })
+
     const slug = slugify(title)
     const existing = await getProject(db, slug)
     if (existing) return reply.code(409).send({ error: `${slug} already exists here` })
 
-    // The reference implementation decides what a record is. This server does
-    // not construct a transition or compute an identifier.
+    // A project is a container and starts empty. The question belongs a level
+    // down, where a transition can attach to it (C4).
     const created = await createRecord(
       options.recordsRoot,
       slug,
-      question,
       request.session!.party,
+      body.description ?? '',
     )
     if (!created.ok) {
       return reply.code(500).send({ error: created.stderr.trim() || created.stdout.trim() })
+    }
+    await reindex(db, options.recordsRoot)
+    return reply.code(201).send(await getProject(db, slug))
+  })
+
+  /**
+   * Open a question, which is what starts a line of work.
+   *
+   * Separate from creating the project on purpose. A question anchors a
+   * trajectory; a project holds trajectories. Nothing can be recorded in a
+   * project with no question open, because a transition must reference an
+   * identified prior state and there is not one yet.
+   */
+  fastify.post('/api/projects/:slug/questions', { onRequest: requireSession }, async (request, reply) => {
+    const { slug } = request.params as { slug: string }
+    const project = await getProject(db, slug)
+    if (!project) return reply.code(404).send({ error: 'no project by that name here' })
+    if (project.openedBy !== request.session!.party) {
+      return reply.code(403).send({ error: 'only the party who created a project may open a question in it' })
+    }
+    const question = ((request.body as { question?: string }).question ?? '').trim()
+    if (!question) return reply.code(400).send({ error: 'a question is the one thing needed' })
+
+    const opened = await openQuestion(options.recordsRoot, slug, question)
+    if (!opened.ok) {
+      return reply.code(500).send({ error: opened.stderr.trim() || opened.stdout.trim() })
     }
     await reindex(db, options.recordsRoot)
     return reply.code(201).send(await getProject(db, slug))

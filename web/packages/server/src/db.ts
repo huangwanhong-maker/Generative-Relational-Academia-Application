@@ -62,6 +62,8 @@ export const projects = sqliteTable(
     id: integer('id').primaryKey({ autoIncrement: true }),
     slug: text('slug').notNull(),
     title: text('title').notNull(),
+    /** Derived from the project's README. The file is the original. */
+    description: text('description').notNull().default(''),
     /** The party who opened it. Not an owner: nothing here confers control. */
     openedBy: text('opened_by').notNull(),
     tier: text('tier', { enum: ['personal', 'group', 'open'] }).notNull(),

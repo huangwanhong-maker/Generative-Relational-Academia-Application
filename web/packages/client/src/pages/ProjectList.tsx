@@ -22,6 +22,8 @@ export function ProjectCard({ project }: { project: Project }) {
         {project.disclosure === 'listed' ? '' : ' · not shared here'}
       </div>
 
+      {project.description && <div className="body">{project.description.trim()}</div>}
+
       {project.trajectories.map((trajectory) => (
         <div className="traj" key={trajectory.trajId}>
           <Link to={`/p/${project.slug}`}>{trajectory.question}</Link>
@@ -35,7 +37,9 @@ export function ProjectCard({ project }: { project: Project }) {
         </div>
       ))}
 
-      {!project.trajectories.length && <div className="meta">no questions opened yet</div>}
+      {!project.trajectories.length && (
+        <div className="meta">no questions opened yet — nothing can be recorded until one is</div>
+      )}
     </div>
   )
 }

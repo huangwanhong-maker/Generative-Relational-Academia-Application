@@ -7,9 +7,10 @@
  * because nothing in the record designates one.
  */
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 
-import { api, type Project, type TrajectoryDetail, type TransitionView } from '../api'
+import { ApiError, api, type Project, type TrajectoryDetail, type TransitionView } from '../api'
+import { Modal } from '../Modal'
 
 /** What each act leaves behind, in the words a person would use for it. */
 const READS_AS: Record<string, string> = {
@@ -67,7 +68,19 @@ function Graph({ svg }: { svg: string }) {
   )
 }
 
-export function Questions({ project }: { project: Project }) {
+export function Questions({
+  project,
+  mine,
+  onOpened,
+}: {
+  project: Project
+  mine: boolean
+  onOpened: (project: Project) => void
+}) {
+  const [asking, setAsking] = useState(false)
+  const [question, setQuestion] = useState('')
+  const [problem, setProblem] = useState('')
+  const [busy, setBusy] = useState(false)
   const [openId, setOpenId] = useState(project.trajectories[0]?.trajId ?? '')
   const [detail, setDetail] = useState<TrajectoryDetail | null>(null)
 
@@ -76,17 +89,72 @@ export function Questions({ project }: { project: Project }) {
     if (openId) void api.trajectory(project.slug, openId).then(setDetail).catch(() => setDetail(null))
   }, [project.slug, openId])
 
+  const ask = async (event: FormEvent) => {
+    event.preventDefault()
+    setBusy(true)
+    setProblem('')
+    try {
+      const updated = await api.openQuestion(project.slug, question)
+      setQuestion('')
+      setAsking(false)
+      onOpened(updated)
+      setOpenId(updated.trajectories[updated.trajectories.length - 1]?.trajId ?? '')
+    } catch (error) {
+      setProblem(error instanceof ApiError ? error.message : String(error))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const opener = mine && (
+    <>
+      <div className="row">
+        <button onClick={() => setAsking(true)}>open a question</button>
+      </div>
+      <Modal open={asking} title="Open a question" onClose={() => setAsking(false)}>
+        <form onSubmit={ask}>
+          <label>
+            The question you are actually trying to answer
+            <textarea
+              autoFocus
+              value={question}
+              onChange={(event) => setQuestion(event.target.value)}
+              required
+            />
+          </label>
+          {problem && <p className="warn">{problem}</p>}
+          <div className="row">
+            <button type="submit" disabled={busy}>
+              {busy ? 'opening…' : 'open it'}
+            </button>
+            <button type="button" className="quiet" onClick={() => setAsking(false)}>
+              cancel
+            </button>
+          </div>
+          <div className="meta">
+            Write it down before the framing hardens and you forget you chose it. It stays open
+            until something answers it, and there is no control that marks it done.
+          </div>
+        </form>
+      </Modal>
+    </>
+  )
+
   if (!project.trajectories.length) {
     return (
-      <div className="note">
-        No questions opened yet. A project without one has nothing for a transition to attach to —
-        every act changes an identified state, and the question is the first state there is.
-      </div>
+      <>
+        <div className="note">
+          No questions open yet. Nothing can be recorded in this project until there is one: every
+          act changes an identified state, and the question is the first state there is.
+        </div>
+        {opener}
+      </>
     )
   }
 
   return (
     <>
+      {opener}
       {project.trajectories.length > 1 && (
         <div className="chips">
           {project.trajectories.map((trajectory) => (

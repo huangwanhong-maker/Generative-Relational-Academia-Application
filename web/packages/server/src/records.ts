@@ -66,17 +66,22 @@ export function runGrrp(args: string[], cwd: string): Promise<GrrpResult> {
 }
 
 /**
- * Open a record, and the first trajectory in it.
+ * Create a project. An empty one, on purpose.
  *
- * Two invocations of `grrp`, not one call into a library: `init` makes the
- * directory a record and generates nothing this server keeps, and `new` opens
- * the question. Both are the reference implementation's decisions to make.
+ * A project is a container -- a directory that is a record -- and creating one
+ * asks for nothing but a name. The question belongs a level down: it anchors a
+ * *trajectory*, which is the thing transitions attach to (C4), and demanding
+ * one up front conflates the container with the line of work inside it.
+ *
+ * An empty project can hold material and can record nothing, which is the
+ * honest state and worth showing rather than preventing: until a question is
+ * open there is no identified prior state for a transition to reference.
  */
 export async function createRecord(
   root: string,
   slug: string,
-  question: string,
   openedBy: string,
+  description = '',
 ): Promise<GrrpResult> {
   const dir = join(root, slug)
   mkdirSync(dir, { recursive: true })
@@ -91,17 +96,44 @@ export async function createRecord(
     rmSync(dir, { recursive: true, force: true })
     return started
   }
-  const opened = await runGrrp(['new', question, '--title', slug], dir)
-  if (!opened.ok) {
-    // A half-built project is worse than none: it holds the name, it is not a
-    // valid record, and the person who tried to create it has no way to say
-    // so. Nothing was disclosed and nothing was recorded, so removing it takes
-    // nothing from anybody -- which is the only reason it is safe to do.
-    rmSync(dir, { recursive: true, force: true })
-    return opened
-  }
+  if (description.trim()) writeDescription(root, slug, description)
   writeHostFacts(root, slug, { openedBy, disclosure: 'private' })
-  return opened
+  return started
+}
+
+/**
+ * Open a question, which is what actually starts a line of work.
+ *
+ * The reference implementation decides what that means and what identifier it
+ * gets. This only passes the words along.
+ */
+export async function openQuestion(
+  root: string,
+  slug: string,
+  question: string,
+): Promise<GrrpResult> {
+  return runGrrp(['new', question], join(root, slug))
+}
+
+/**
+ * What a project says about itself, in a file anybody can read.
+ *
+ * A plain `README.md` at the top of the project rather than a column in a
+ * database: it travels with the record when somebody takes a copy, it survives
+ * this server being replaced, and it is legible without any of this (C11).
+ *
+ * Like anything under `files/`, writing it records nothing. A description is
+ * material, not a transition.
+ */
+const DESCRIPTION_FILE = 'README.md'
+
+export function readDescription(root: string, slug: string): string {
+  const path = join(root, slug, DESCRIPTION_FILE)
+  return existsSync(path) ? readFileSync(path).toString('utf-8') : ''
+}
+
+export function writeDescription(root: string, slug: string, text: string): void {
+  writeFileSync(join(root, slug, DESCRIPTION_FILE), text.trim() + '\n', 'utf-8')
 }
 
 /**
@@ -172,6 +204,7 @@ export interface TrajectoryOnDisk {
 export interface ProjectOnDisk {
   slug: string
   title: string
+  description: string
   openedBy: string
   tier: 'personal' | 'group' | 'open'
   openedAt: string
@@ -208,7 +241,8 @@ export function readProject(root: string, slug: string): ProjectOnDisk | null {
 
   return {
     slug,
-    title: (trajectories[0]?.title || slug) as string,
+    title: slug,
+    description: readDescription(root, slug),
     openedBy: String(profile['party'] ?? ''),
     tier: (profile['tier'] as ProjectOnDisk['tier']) ?? 'personal',
     openedAt: String(profile['created'] ?? ''),

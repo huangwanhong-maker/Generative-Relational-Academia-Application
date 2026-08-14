@@ -16,9 +16,19 @@ look, and a front door that demanded a login before it showed you anything
 would have already decided it was the authority. Signing in adds one thing:
 your own projects, and the ability to open one.
 
-**Project** is the top-level object, the way a repository is on a forge. A
-project holds one or more questions; underneath it is *the record*, which is
-the protocol's word for the files.
+**Project** is the top-level object, the way a repository is on a forge. It is
+created with a name and, if you want, a description — kept as a plain
+`README.md` in the project directory, so it travels with the record and
+outlives this server.
+
+A project starts **empty**, and a question is opened separately inside it. The
+two are different things: a project is a container, a question anchors a
+*trajectory*, and a trajectory is what transitions attach to (C4). Demanding a
+question at creation conflates them, and implies a project is one enquiry.
+
+Nothing can be recorded in a project with no question open — every act changes
+an identified state, and the question is the first state there is. The
+interface says so rather than preventing the situation.
 
 The reference implementation, [`grrp`](../grrp), stays Python and stays the
 thing the protocol is defined against. This server invokes it as a subprocess
