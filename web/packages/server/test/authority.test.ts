@@ -7,7 +7,8 @@
  * which deleting the database costs anybody a record.
  */
 
-import { mkdtempSync, rmSync, existsSync } from 'node:fs'
+import { createHash } from 'node:crypto'
+import { mkdtempSync, readFileSync, readdirSync, rmSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -298,5 +299,134 @@ describe('search', () => {
 
     const anonymous = (await app.fastify.inject({ method: 'GET', url: '/api/search?q=trust' })).json()
     expect(anonymous.hits).toEqual([])
+  })
+})
+
+
+describe('material is not evidence', () => {
+  async function openTrust() {
+    const session = await signIn()
+    await app.fastify.inject({
+      method: 'POST',
+      url: '/api/projects',
+      headers: session.headers,
+      payload: { title: 'trust', question: 'Is trust a property between individuals?' },
+    })
+    return session
+  }
+
+  it('stores a file and writes no transition', async () => {
+    const session = await openTrust()
+    const before = readdirSync(
+      join(root, 'records', 'trust', 'trajectories', 'trust', 'transitions'),
+    )
+
+    const stored = await app.fastify.inject({
+      method: 'POST',
+      url: '/api/projects/trust/files',
+      headers: session.headers,
+      payload: { name: 'notes.md', contentBase64: Buffer.from('Field notes.').toString('base64') },
+    })
+
+    expect(stored.statusCode).toBe(201)
+    // The whole point: nothing entered the log. C1 -- no operation exists
+    // merely so that a record exists, and a file is not a change in anybody's
+    // understanding until a transition cites it.
+    expect(
+      readdirSync(join(root, 'records', 'trust', 'trajectories', 'trust', 'transitions')),
+    ).toEqual(before)
+  })
+
+  it('returns the digest a transition would cite, over the bytes on disk', async () => {
+    const session = await openTrust()
+    const bytes = Buffer.from('Field notes.')
+    const stored = await app.fastify.inject({
+      method: 'POST',
+      url: '/api/projects/trust/files',
+      headers: session.headers,
+      payload: { name: 'notes.md', contentBase64: bytes.toString('base64') },
+    })
+
+    const onDisk = readFileSync(join(root, 'records', 'trust', 'files', 'notes.md'))
+    expect(stored.json().digest).toBe(
+      `state:sha256:${createHash('sha256').update(onDisk).digest('hex')}`,
+    )
+    // Verifiable by anyone holding the file, with no knowledge of this tool.
+    expect(onDisk.equals(bytes)).toBe(true)
+  })
+
+  it('refuses a name that would escape the files directory', async () => {
+    const session = await openTrust()
+    for (const name of ['../.grrp/profile.yaml', '.gra-host.json', 'a/b.txt', '..']) {
+      const reply = await app.fastify.inject({
+        method: 'POST',
+        url: '/api/projects/trust/files',
+        headers: session.headers,
+        payload: { name, contentBase64: Buffer.from('x').toString('base64') },
+      })
+      expect(reply.statusCode, name).toBe(400)
+    }
+    // The record is untouched.
+    expect(existsSync(join(root, 'records', 'trust', '.grrp', 'profile.yaml'))).toBe(true)
+  })
+
+  it('will not let a stranger add material to a project they did not open', async () => {
+    await openTrust()
+    const stranger = await signIn('grace', 'another-fine-password')
+
+    const reply = await app.fastify.inject({
+      method: 'POST',
+      url: '/api/projects/trust/files',
+      headers: stranger.headers,
+      payload: { name: 'notes.md', contentBase64: Buffer.from('x').toString('base64') },
+    })
+
+    expect(reply.statusCode).toBe(403)
+  })
+})
+
+describe('one question, in full', () => {
+  it('returns its transitions with parents before children', async () => {
+    const session = await signIn()
+    await app.fastify.inject({
+      method: 'POST',
+      url: '/api/projects',
+      headers: session.headers,
+      payload: { title: 'trust', question: 'Is trust a property between individuals?' },
+    })
+
+    const reply = await app.fastify.inject({
+      method: 'GET',
+      url: '/api/projects/trust/trajectories/traj:trust',
+      headers: session.headers,
+    })
+
+    const detail = reply.json()
+    expect(detail.question).toBe('Is trust a property between individuals?')
+    expect(detail.transitions[0].act).toBe('question')
+    // The opening question is unresolved, and stays that way. There is no act
+    // that marks a question answered, because most of them never are.
+    expect(detail.transitions[0].disposition).toBe('unresolved')
+
+    const seen = new Set<string>()
+    for (const transition of detail.transitions) {
+      for (const parent of transition.parents) expect(seen.has(parent)).toBe(true)
+      seen.add(transition.id)
+    }
+  })
+
+  it('shows nothing of a project the viewer may not see', async () => {
+    const session = await signIn()
+    await app.fastify.inject({
+      method: 'POST',
+      url: '/api/projects',
+      headers: session.headers,
+      payload: { title: 'trust', question: 'A question.' },
+    })
+
+    for (const url of ['/api/projects/trust/trajectories/traj:trust', '/api/projects/trust/files']) {
+      const reply = await app.fastify.inject({ method: 'GET', url })
+      expect(reply.statusCode, url).toBe(404)
+    }
   })
 })

@@ -146,3 +146,63 @@ footer {
   font-size: 0.8rem;
   color: var(--dim);
 }
+
+/* Tabs inside a project. The project is what you arrive at; these are the
+   things inside it. No tab is marked default in the record's sense — the
+   first is simply the one that opens. */
+.tabs {
+  display: flex;
+  gap: 0.25rem;
+  border-bottom: 1px solid var(--line);
+  margin: 1.5rem 0 0.5rem;
+}
+
+.tab {
+  background: transparent;
+  color: var(--dim);
+  border: none;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  padding: 0.5rem 0.9rem;
+  font-size: 0.9rem;
+}
+
+.tab:hover { color: var(--fg); }
+.tab.on { color: var(--fg); border-bottom-color: var(--fg); }
+
+/* Several questions in one project: pick one. */
+.chips { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 1rem; }
+
+.chip {
+  background: transparent;
+  color: var(--dim);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 0.2rem 0.75rem;
+  font-size: 0.82rem;
+}
+
+.chip.on { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+
+/* The question a line of work started from, set apart because everything
+   under it is an answer to it. */
+.framing {
+  font-size: 1.05rem;
+  margin: 0.4rem 0;
+  padding-left: 0.8rem;
+  border-left: 3px solid var(--line);
+}
+
+.body { margin: 0.35rem 0 0; white-space: pre-wrap; }
+
+.scroll {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--card);
+  padding: 0.5rem;
+}
+
+.scroll img { max-width: none; display: block; }
+
+input[type='file'] { border: none; padding: 0; background: transparent; }

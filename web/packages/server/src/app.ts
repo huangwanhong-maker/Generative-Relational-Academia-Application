@@ -25,7 +25,15 @@ import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest }
 import { REGISTRATION_OPEN, Refused, authenticate, createAccount } from './accounts.js'
 import { openDatabase, type Db } from './database.js'
 import { getProject, listProjects, reindex, search, widenDisclosure } from './projects.js'
-import { createRecord, slugify } from './records.js'
+import {
+  createRecord,
+  listFiles,
+  readProjectFile,
+  readTrajectoryDetail,
+  slugify,
+  trajectoryGraph,
+  writeProjectFile,
+} from './records.js'
 import { COOKIE, Sessions, type Session } from './sessions.js'
 
 export interface Options {
@@ -56,7 +64,9 @@ export async function buildApp(options: Options): Promise<App> {
   await mkdir(options.recordsRoot, { recursive: true })
   await reindex(db, options.recordsRoot)
 
-  const fastify = Fastify({ logger: false })
+  // Room for a figure or a dataset. Not room for an archive: material this
+  // server will not look inside belongs beside the record, not inside it.
+  const fastify = Fastify({ logger: false, bodyLimit: 25 * 1024 * 1024 })
   await fastify.register(cookie)
 
   fastify.decorateRequest('session', null)
@@ -148,11 +158,11 @@ export async function buildApp(options: Options): Promise<App> {
   fastify.get('/api/projects/:slug', async (request, reply) => {
     const { slug } = request.params as { slug: string }
     const project = await getProject(db, slug)
-    if (!project) return reply.code(404).send({ error: 'no record by that name here' })
+    if (!project) return reply.code(404).send({ error: 'no project by that name here' })
     if (project.disclosure !== 'listed' && project.openedBy !== request.session?.party) {
       // Not "forbidden": the honest statement is that this viewer cannot see
       // it, not that it exists and is being withheld from them.
-      return reply.code(404).send({ error: 'no record by that name here' })
+      return reply.code(404).send({ error: 'no project by that name here' })
     }
     return project
   })
@@ -162,7 +172,7 @@ export async function buildApp(options: Options): Promise<App> {
     const title = (body.title ?? '').trim()
     const question = (body.question ?? '').trim()
     if (!title || !question) {
-      return reply.code(400).send({ error: 'a record needs a name and a question' })
+      return reply.code(400).send({ error: 'a project needs a name and a question' })
     }
     const slug = slugify(title)
     const existing = await getProject(db, slug)
@@ -190,12 +200,109 @@ export async function buildApp(options: Options): Promise<App> {
   fastify.post('/api/projects/:slug/disclose', { onRequest: requireSession }, async (request, reply) => {
     const { slug } = request.params as { slug: string }
     const project = await getProject(db, slug)
-    if (!project) return reply.code(404).send({ error: 'no record by that name here' })
+    if (!project) return reply.code(404).send({ error: 'no project by that name here' })
     if (project.openedBy !== request.session!.party) {
-      return reply.code(403).send({ error: 'only the party who opened a record may widen it' })
+      return reply.code(403).send({ error: 'only the party who opened a project may widen it' })
     }
     await widenDisclosure(db, options.recordsRoot, slug)
     return getProject(db, slug)
+  })
+
+  /**
+   * May this viewer see this project? Returns it, or null.
+   *
+   * Null means "no project by that name here", and the reply says exactly
+   * that rather than "forbidden" -- confirming that something exists and is
+   * being withheld is itself a disclosure.
+   */
+  const visible = async (slug: string, request: FastifyRequest) => {
+    const project = await getProject(db, slug)
+    if (!project) return null
+    if (project.disclosure === 'listed' || project.openedBy === request.session?.party) {
+      return project
+    }
+    return null
+  }
+
+  // --- one question, in full -----------------------------------------------
+
+  fastify.get('/api/projects/:slug/trajectories/:trajId', async (request, reply) => {
+    const { slug, trajId } = request.params as { slug: string; trajId: string }
+    if (!(await visible(slug, request))) {
+      return reply.code(404).send({ error: 'no project by that name here' })
+    }
+    const detail = readTrajectoryDetail(options.recordsRoot, slug, trajId)
+    if (!detail) return reply.code(404).send({ error: 'no question by that name in this project' })
+    return {
+      ...detail,
+      trajId,
+      // Drawn by the reference implementation, so the picture and the record
+      // cannot drift apart. Divergent branches are drawn identically and none
+      // is marked principal, because nothing in the record designates one.
+      graph: await trajectoryGraph(options.recordsRoot, slug, trajId),
+    }
+  })
+
+  // --- the artefact plane ---------------------------------------------------
+
+  fastify.get('/api/projects/:slug/files', async (request, reply) => {
+    const { slug } = request.params as { slug: string }
+    if (!(await visible(slug, request))) {
+      return reply.code(404).send({ error: 'no project by that name here' })
+    }
+    return { files: listFiles(options.recordsRoot, slug) }
+  })
+
+  fastify.get('/api/projects/:slug/files/:name', async (request, reply) => {
+    const { slug, name } = request.params as { slug: string; name: string }
+    if (!(await visible(slug, request))) {
+      return reply.code(404).send({ error: 'no project by that name here' })
+    }
+    try {
+      const bytes = readProjectFile(options.recordsRoot, slug, name)
+      if (!bytes) return reply.code(404).send({ error: 'no such file in this project' })
+      return reply.type('application/octet-stream').send(bytes)
+    } catch (error) {
+      return reply.code(400).send({ error: String((error as Error).message) })
+    }
+  })
+
+  /**
+   * Store a file. **This records nothing.**
+   *
+   * No transition is written and no identifier is minted: C1 says no operation
+   * exists merely so that a record exists, and a file arriving in a directory
+   * is not a change in anyone's understanding. The digest comes back because
+   * it is what a transition would cite to make this material part of the
+   * record -- an act somebody has to perform deliberately, elsewhere.
+   */
+  fastify.post('/api/projects/:slug/files', { onRequest: requireSession }, async (request, reply) => {
+    const { slug } = request.params as { slug: string }
+    const project = await getProject(db, slug)
+    if (!project) return reply.code(404).send({ error: 'no project by that name here' })
+    if (project.openedBy !== request.session!.party) {
+      return reply.code(403).send({ error: 'only the party who opened a project may add to it' })
+    }
+    const body = request.body as { name?: string; contentBase64?: string }
+    if (!body.name || typeof body.contentBase64 !== 'string') {
+      return reply.code(400).send({ error: 'a file needs a name and its bytes' })
+    }
+    try {
+      const file = writeProjectFile(
+        options.recordsRoot,
+        slug,
+        body.name,
+        Buffer.from(body.contentBase64, 'base64'),
+      )
+      return reply.code(201).send({
+        ...file,
+        note:
+          'Stored, and nothing was recorded. Cite this digest from a transition to make it ' +
+          'part of the record.',
+      })
+    } catch (error) {
+      return reply.code(400).send({ error: String((error as Error).message) })
+    }
   })
 
   // --- search --------------------------------------------------------------

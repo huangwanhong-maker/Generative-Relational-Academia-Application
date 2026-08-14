@@ -48,7 +48,7 @@ export function MyProjects({ me }: { me: Me }) {
         </p>
       </header>
 
-      <h2>Here</h2>
+      <h2>Projects you have opened</h2>
       <ProjectList
         projects={projects ?? []}
         empty={

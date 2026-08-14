@@ -58,7 +58,7 @@ export function Home({ me }: { me: Me }) {
         <button type="submit">search</button>
       </form>
 
-      <h2>Shared here</h2>
+      <h2>Projects shared on this server</h2>
       <ProjectList
         projects={projects ?? []}
         empty={

@@ -16,7 +16,8 @@
  */
 
 import { spawn } from 'node:child_process'
-import { readFileSync, readdirSync, existsSync, mkdirSync, writeFileSync } from 'node:fs'
+import { createHash } from 'node:crypto'
+import { readFileSync, readdirSync, existsSync, mkdirSync, statSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 import { parse as parseYaml } from 'yaml'
@@ -256,4 +257,196 @@ export function listRecordSlugs(root: string): string[] {
     .filter((entry) => entry.isDirectory() && existsSync(join(root, entry.name, '.grrp')))
     .map((entry) => entry.name)
     .sort()
+}
+
+
+// --- the artefact plane ------------------------------------------------------
+
+/**
+ * Working files belonging to a project: data, drafts, figures, notes.
+ *
+ * **Storing a file records nothing.** No transition is written, no identifier
+ * is minted, nothing enters the log. C1 is explicit that no operation exists
+ * merely so that a record exists, and a file appearing in a directory is not a
+ * change in anybody's understanding.
+ *
+ * What makes a file part of the record is a transition referencing it, by the
+ * hash of its bytes, through the `artefacts` field the skeleton already
+ * carries. Until then it is material, and material is not evidence.
+ *
+ * The hash is computed and shown for exactly that reason: it is what a
+ * transition would cite, and what a reader elsewhere would check.
+ */
+export interface ProjectFile {
+  name: string
+  size: number
+  /** state:sha256:… over the bytes as they sit on disk. Citable as an artefact. */
+  digest: string
+  modified: string
+}
+
+const FILES_DIR = 'files'
+
+/**
+ * Names that are a single path segment, and nothing clever.
+ *
+ * Rejecting traversal is the obvious half. The less obvious half is rejecting
+ * leading dots, so that no upload can land on `.grrp/`, `.git/` or the host
+ * sidecar and rewrite the record through the file tab.
+ *
+ * This **refuses** a name with a directory in it rather than quietly reducing
+ * it to its last segment. Stripping would be equally safe and would silently
+ * store something other than what was asked for, which is the habit that makes
+ * a tool untrustworthy in the places where being wrong is not merely untidy.
+ */
+export function safeFileName(name: string): string {
+  const trimmed = name.trim()
+  const wrong =
+    !trimmed ||
+    /[\/]/.test(trimmed) ||
+    trimmed.startsWith('.') ||
+    trimmed.includes('..') ||
+    // eslint-disable-next-line no-control-regex
+    /[ -]/.test(trimmed) ||
+    trimmed.length > 128
+  if (wrong) {
+    throw new Error(
+      `${JSON.stringify(name)} will not do as a file name: one plain name, no directories, ` +
+        'not starting with a dot, up to 128 characters.',
+    )
+  }
+  return trimmed
+}
+
+export function listFiles(root: string, slug: string): ProjectFile[] {
+  const dir = join(root, slug, FILES_DIR)
+  if (!existsSync(dir)) return []
+  return readdirSync(dir, { withFileTypes: true })
+    .filter((entry) => entry.isFile())
+    .map((entry) => {
+      const path = join(dir, entry.name)
+      const bytes = readFileSync(path)
+      return {
+        name: entry.name,
+        size: bytes.length,
+        digest: `state:sha256:${createHash('sha256').update(bytes).digest('hex')}`,
+        modified: statSync(path).mtime.toISOString(),
+      }
+    })
+    // By name. Not by size, not by recency: an ordering here would be a
+    // measure over the project's material, and would say which mattered.
+    .sort((a, b) => a.name.localeCompare(b.name))
+}
+
+export function writeProjectFile(
+  root: string,
+  slug: string,
+  name: string,
+  bytes: Buffer,
+): ProjectFile {
+  const safe = safeFileName(name)
+  const dir = join(root, slug, FILES_DIR)
+  mkdirSync(dir, { recursive: true })
+  // Bytes, always. A file cited by a transition is cited by the hash of what
+  // is on disk, so nothing may rewrite it on the way in.
+  writeFileSync(join(dir, safe), bytes)
+  return listFiles(root, slug).find((file) => file.name === safe)!
+}
+
+export function readProjectFile(root: string, slug: string, name: string): Buffer | null {
+  const path = join(root, slug, FILES_DIR, safeFileName(name))
+  return existsSync(path) ? readFileSync(path) : null
+}
+
+// --- one trajectory, in full -------------------------------------------------
+
+export interface TransitionView {
+  id: string
+  act: string | null
+  target: string | null
+  relation: string | null
+  trigger: string | null
+  disposition: string | null
+  parents: string[]
+  priorState: string | null
+  posteriorState: string | null
+  performer: string
+  performed: string
+  attested: boolean
+  /** The content of the state this act produced, when it is held here. */
+  body: string | null
+  artefacts: unknown[]
+}
+
+export function readTrajectoryDetail(
+  root: string,
+  slug: string,
+  trajId: string,
+): { question: string; title: string | null; transitions: TransitionView[] } | null {
+  const dir = join(root, slug, 'trajectories', trajId.replace(/^traj:/, ''))
+  const metaPath = join(dir, 'trajectory.yaml')
+  if (!existsSync(metaPath)) return null
+  const meta = readYaml(metaPath)
+
+  const transitionsDir = join(dir, 'transitions')
+  const records = existsSync(transitionsDir)
+    ? readdirSync(transitionsDir)
+        .filter((name) => name.endsWith('.yaml'))
+        .map((name) => readYaml(join(transitionsDir, name)))
+    : []
+
+  const body = (stateId: unknown): string | null => {
+    if (typeof stateId !== 'string') return null
+    const path = join(dir, 'states', `${stateId.split(':').pop()}.md`)
+    return existsSync(path) ? readFileSync(path).toString('utf-8') : null
+  }
+
+  const views: TransitionView[] = records.map((record) => ({
+    id: String(record['id']),
+    act: (record['act'] as string) ?? null,
+    target: (record['target'] as string) ?? null,
+    relation: (record['relation'] as string) ?? null,
+    trigger: (record['trigger'] as string) ?? null,
+    disposition: (record['disposition'] as string) ?? null,
+    parents: ((record['parents'] as string[]) ?? []).map(String),
+    priorState: (record['prior_state'] as string) ?? null,
+    posteriorState: (record['posterior_state'] as string) ?? null,
+    performer: String(record['performer'] ?? ''),
+    performed: String(record['performed'] ?? ''),
+    attested: Boolean((record['registration'] as Record<string, unknown>)?.['attested']),
+    body: body(record['posterior_state']),
+    artefacts: (record['artefacts'] as unknown[]) ?? [],
+  }))
+
+  // Parents before children, then by time. The log order, which is a
+  // chronology of one line of work and not a ranking of anything.
+  const byId = new Map(views.map((view) => [view.id, view]))
+  const ordered: TransitionView[] = []
+  const placed = new Set<string>()
+  const place = (view: TransitionView) => {
+    if (placed.has(view.id)) return
+    placed.add(view.id)
+    for (const parent of view.parents) {
+      const ancestor = byId.get(parent)
+      if (ancestor) place(ancestor)
+    }
+    ordered.push(view)
+  }
+  for (const view of [...views].sort((a, b) => a.performed.localeCompare(b.performed))) place(view)
+
+  return {
+    question: String(meta['question'] ?? ''),
+    title: (meta['title'] as string) ?? null,
+    transitions: ordered,
+  }
+}
+
+/** The trajectory drawn, as the reference implementation draws it. */
+export async function trajectoryGraph(
+  root: string,
+  slug: string,
+  trajId: string,
+): Promise<string | null> {
+  const drawn = await runGrrp(['graph', trajId], join(root, slug))
+  return drawn.ok && drawn.stdout.includes('<svg') ? drawn.stdout : null
 }

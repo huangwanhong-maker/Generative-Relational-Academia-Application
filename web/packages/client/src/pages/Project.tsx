@@ -1,18 +1,33 @@
 /**
- * One record: its questions, and what stands unanswered in each.
+ * One project. Project-major, with tabs.
  *
- * Divergent lines are shown side by side and neither is marked principal,
- * default or current, because nothing in the record designates one. There is
- * no control here that combines two of them, and not the word for it.
+ * The project is the thing you arrive at; its questions are one of the things
+ * inside it, alongside its material. That is a presentation choice, and it is
+ * available precisely because the record underneath is not organised that way:
+ * a transition attaches to an identified state inside a line of work, never to
+ * a project as a whole (C4), so the container is free to be whatever is
+ * clearest to read.
  */
 
 import { useEffect, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useSearchParams } from 'react-router-dom'
 
 import { api, ApiError, type Me, type Project } from '../api'
+import { Files } from './Files'
+import { Questions } from './Questions'
+
+const TABS = [
+  ['overview', 'Overview'],
+  ['questions', 'Questions'],
+  ['files', 'Files'],
+] as const
+
+type Tab = (typeof TABS)[number][0]
 
 export function ProjectPage({ me }: { me: Me }) {
   const { slug = '' } = useParams()
+  const [params, setParams] = useSearchParams()
+  const tab = (params.get('tab') as Tab) ?? 'overview'
   const [project, setProject] = useState<Project | null>(null)
   const [problem, setProblem] = useState('')
 
@@ -27,10 +42,7 @@ export function ProjectPage({ me }: { me: Me }) {
   if (!project) return <div className="note">reading…</div>
 
   const mine = me.signedIn && project.openedBy === me.party
-
-  const widen = async () => {
-    setProject(await api.disclose(slug))
-  }
+  const widen = async () => setProject(await api.disclose(slug))
 
   return (
     <>
@@ -43,45 +55,87 @@ export function ProjectPage({ me }: { me: Me }) {
         </p>
       </header>
 
-      <h2>Questions</h2>
-      {project.trajectories.map((trajectory) => (
-        <div className="card" key={trajectory.trajId}>
-          <strong>{trajectory.question}</strong>
-          <div className="meta id">{trajectory.trajId}</div>
-          <div className="meta">
-            {/* A count within one trajectory, shown beside its own question and
-                never next to another's. That is the line C6 draws. */}
-            {trajectory.transitionCount === 1
-              ? 'one transition in this line of work'
-              : `${trajectory.transitionCount} transitions in this line of work`}
-          </div>
-          {trajectory.openCount > 0 && (
+      <div className="tabs">
+        {TABS.map(([key, label]) => (
+          <button
+            key={key}
+            className={key === tab ? 'tab on' : 'tab'}
+            onClick={() => setParams(key === 'overview' ? {} : { tab: key })}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'overview' && <Overview project={project} mine={mine} onWiden={widen} />}
+      {tab === 'questions' && <Questions project={project} />}
+      {tab === 'files' && <Files project={project} me={me} />}
+    </>
+  )
+}
+
+function Overview({
+  project,
+  mine,
+  onWiden,
+}: {
+  project: Project
+  mine: boolean
+  onWiden: () => Promise<void>
+}) {
+  const standing = project.trajectories.filter((trajectory) => trajectory.openCount > 0)
+
+  return (
+    <>
+      <h2>What this project is trying to find out</h2>
+      {project.trajectories.length ? (
+        project.trajectories.map((trajectory) => (
+          <p className="framing" key={trajectory.trajId}>
+            {trajectory.question}
+          </p>
+        ))
+      ) : (
+        <div className="note">No questions opened yet.</div>
+      )}
+
+      <h2>Standing unanswered</h2>
+      {standing.length ? (
+        standing.map((trajectory) => (
+          <div className="card open" key={trajectory.trajId}>
             <div className="meta open-mark">
               {trajectory.openCount === 1
                 ? 'one objection nobody has answered'
                 : `${trajectory.openCount} objections nobody has answered`}
             </div>
-          )}
+            <div className="meta">under: {trajectory.question}</div>
+          </div>
+        ))
+      ) : (
+        <div className="note">
+          Nothing objected to and unanswered. That is a statement about what has been recorded, not
+          a claim that the work is sound.
         </div>
-      ))}
+      )}
 
       {mine && project.disclosure !== 'listed' && (
         <>
           <h2>Share this project</h2>
           <div className="note">
             Listing it lets anyone read and search it, including people with no account here. It
-            cannot be unlisted afterwards — disclosure widens and never narrows, so this is a decision
-            rather than a setting.
+            cannot be unlisted afterwards — disclosure widens and never narrows, so this is a
+            decision rather than a setting.
           </div>
-          <button onClick={widen}>share it</button>
+          <button onClick={onWiden}>share it</button>
         </>
       )}
 
+      <h2>Working on it</h2>
       <div className="note">
-        Recording acts — positions, objections, checks — is done with{' '}
-        <span className="id">grrp</span> against the files themselves. Bringing those to this page
-        is the next thing being built; nothing recorded at the terminal is invisible here, it just
-        needs a reindex.
+        Positions, objections and checks are recorded with <span className="id">grrp</span> against
+        the files themselves — <span className="id">grrp claim</span>,{' '}
+        <span className="id">grrp challenge</span>, <span className="id">grrp verify</span>.
+        Bringing those to this page is the next piece of work; nothing recorded at the terminal is
+        invisible here, it only needs a reindex.
       </div>
     </>
   )

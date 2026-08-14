@@ -42,6 +42,40 @@ export interface Hit {
   where: string
 }
 
+export interface TransitionView {
+  id: string
+  act: string | null
+  target: string | null
+  relation: string | null
+  trigger: string | null
+  disposition: string | null
+  parents: string[]
+  priorState: string | null
+  posteriorState: string | null
+  performer: string
+  performed: string
+  attested: boolean
+  body: string | null
+  artefacts: unknown[]
+}
+
+export interface TrajectoryDetail {
+  trajId: string
+  title: string | null
+  question: string
+  transitions: TransitionView[]
+  /** SVG, drawn by the reference implementation. Null if it could not run. */
+  graph: string | null
+}
+
+export interface ProjectFile {
+  name: string
+  size: number
+  /** state:sha256:… over the bytes. What a transition would cite. */
+  digest: string
+  modified: string
+}
+
 export class ApiError extends Error {}
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -80,6 +114,24 @@ export const api = {
   /** Widens. There is no counterpart that narrows, and there will not be. */
   disclose: (slug: string) =>
     request<Project>(`/api/projects/${encodeURIComponent(slug)}/disclose`, { method: 'POST' }),
+
+  trajectory: (slug: string, trajId: string) =>
+    request<TrajectoryDetail>(
+      `/api/projects/${encodeURIComponent(slug)}/trajectories/${encodeURIComponent(trajId)}`,
+    ),
+
+  files: (slug: string) =>
+    request<{ files: ProjectFile[] }>(`/api/projects/${encodeURIComponent(slug)}/files`),
+
+  fileUrl: (slug: string, name: string) =>
+    `/api/projects/${encodeURIComponent(slug)}/files/${encodeURIComponent(name)}`,
+
+  /** Stores a file. Records nothing — see the note the server sends back. */
+  upload: (slug: string, name: string, contentBase64: string) =>
+    request<ProjectFile & { note: string }>(`/api/projects/${encodeURIComponent(slug)}/files`, {
+      method: 'POST',
+      body: JSON.stringify({ name, contentBase64 }),
+    }),
 
   search: (query: string) =>
     request<{ query: string; hits: Hit[]; ordering: string }>(
