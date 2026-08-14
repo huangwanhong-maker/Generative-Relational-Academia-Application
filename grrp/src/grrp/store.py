@@ -124,6 +124,11 @@ def slugify(text: str, limit: int = 40) -> str:
 class Repo:
     root: Path
 
+    #: Which local key is acting, when something has chosen one -- the browser
+    #: page does, per request, so that two people at one machine are two
+    #: parties.  ``None`` falls back to the environment.
+    acting_as: str | None = None
+
     # -- discovery ------------------------------------------------------------
 
     @classmethod
@@ -173,7 +178,7 @@ class Repo:
         parties share, and for the tests, which need a second party in order to
         exercise registration at all.
         """
-        return os.environ.get("GRRP_KEY", "self")
+        return self.acting_as or os.environ.get("GRRP_KEY", "self")
 
     def party(self) -> str:
         name = self.key_name()

@@ -27,6 +27,7 @@ from . import (
     errors,
     export,
     gitutil,
+    identity,
     keys,
     store,
     views,
@@ -1865,6 +1866,48 @@ def graph_cmd(
         _echo(f"written to {out}")
     else:
         _echo(svg)
+
+
+@command(name="account")
+def account_cmd(
+    action: str = typer.Argument(..., help="add | passwd | list"),
+    name: str = typer.Argument("", help="The account name."),
+    password: str = typer.Option("", "--password", help="Read from the terminal if omitted."),
+) -> None:
+    """Let a person sign in to the page you are serving.
+
+    Purpose (for you): to give a colleague a way in, on the machine you are
+    running the page on, without giving them your key.
+
+    An account is access, not standing. It reaches a keypair, and the keypair
+    is what signs; nothing here confers evidential weight, and no one needs an
+    account to hold the record, continue it or verify it. Registration through
+    the page is closed, so this is how accounts come into being.
+    """
+    from . import accounts
+
+    root = Path.cwd()
+    if action == "list":
+        for account in accounts.listing(root):
+            _echo(f"{account.name}  {account.party}")
+        if not accounts.listing(root):
+            _echo("no accounts here yet - 'grrp account add <name>'")
+        return
+
+    if not name:
+        raise errors.Refused(f"'grrp account {action}' needs a name")
+    if not password:
+        password = typer.prompt("password", hide_input=True, confirmation_prompt=True)
+
+    if action == "add":
+        account = accounts.create(root, name, password)
+        _echo(f"{account.name} can sign in, and signs as {account.party}")
+        _echo(f"  the private key is in {identity.RING_DIR}/ and is never sent anywhere")
+    elif action == "passwd":
+        accounts.set_password(root, name, password)
+        _echo(f"{name}'s password is changed")
+    else:
+        raise errors.Refused(f"{action!r} is not one of: add, passwd, list")
 
 
 @command(name="ui")

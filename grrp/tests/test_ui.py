@@ -17,7 +17,7 @@ from http.server import ThreadingHTTPServer
 import pytest
 
 from conftest import sid
-from grrp import canonical, ui, views
+from grrp import accounts, canonical, ui, views
 
 
 def page(repo, traj_id, token="t", message=""):
@@ -26,13 +26,45 @@ def page(repo, traj_id, token="t", message=""):
 
 @pytest.fixture()
 def served(workspace):
-    """A running page on an ephemeral loopback port."""
-    server = ThreadingHTTPServer(("127.0.0.1", 0), ui.make_handler(workspace.repo, "secret"))
+    """A running page on an ephemeral loopback port, with one signed-in account.
+
+    Signed in as a fixture rather than per test, because every test below is
+    about what the page does once you are past the door. What happens at the
+    door has its own tests.
+    """
+    accounts.create(workspace.path, "tester", "a-good-enough-password")
+    sessions = ui.Sessions()
+    ticket = sessions.begin("tester")
+    server = ThreadingHTTPServer(
+        ("127.0.0.1", 0), ui.make_handler(workspace.repo, "secret", sessions)
+    )
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
-    yield workspace, f"http://127.0.0.1:{server.server_port}"
+    yield workspace, Client(f"http://127.0.0.1:{server.server_port}", ticket)
     server.shutdown()
     server.server_close()
+
+
+class Client:
+    """A browser that is signed in: it carries the session cookie."""
+
+    def __init__(self, base: str, ticket: str) -> None:
+        self.base = base
+        self.cookie = f"{ui.COOKIE}={ticket}"
+
+    def __str__(self) -> str:
+        return self.base
+
+    def request(self, path: str, data: bytes | None = None, method: str = "GET"):
+        return urllib.request.Request(
+            f"{self.base}{path}",
+            data=data,
+            method=method,
+            headers={"Cookie": self.cookie},
+        )
+
+    def get(self, path: str = "/") -> str:
+        return urllib.request.urlopen(self.request(path)).read().decode("utf-8")
 
 
 # --- what it shows -----------------------------------------------------------
@@ -218,7 +250,9 @@ def test_at_the_group_tier_the_page_proposes_rather_than_records(trajectory):
 def test_the_page_offers_no_way_to_narrow_disclosure_or_approve_an_absorption(trajectory):
     workspace, traj_id = trajectory
     workspace.run("claim", traj_id, "-m", "A position.")
-    body = page(workspace.repo, traj_id).lower()
+    # The rendered body, not the stylesheet: CSS says "display:block" about
+    # boxes and means nothing about disclosure.
+    body = page(workspace.repo, traj_id).split("</style>")[1].lower()
     for forbidden in ("unpublish", "make private", "approve", "veto", "block", "reject"):
         assert forbidden not in body
 
@@ -226,15 +260,15 @@ def test_the_page_offers_no_way_to_narrow_disclosure_or_approve_an_absorption(tr
 # --- it is local, and it is not a service ------------------------------------
 
 def test_it_binds_to_loopback_and_needs_a_token_to_write(served):
-    workspace, base = served
+    workspace, client = served
     workspace.run("new", "A question", "--title", "q")
 
-    assert "A question" in urllib.request.urlopen(f"{base}/").read().decode("utf-8")
+    assert "A question" in client.get("/")
 
     with pytest.raises(urllib.error.HTTPError) as raised:
         urllib.request.urlopen(
-            urllib.request.Request(
-                f"{base}/t/q/act",
+            client.request(
+                "/t/q/act",
                 data=b"act=claim&message=from+another+page&token=wrong",
                 method="POST",
             )
@@ -474,3 +508,180 @@ def test_graphing_an_empty_trajectory_refuses_rather_than_writing_nothing(worksp
     workspace.run("new", "A question", "--title", "q")
     # The opening question is a state, so there is something to draw.
     assert "<svg" in ui.standalone_svg(workspace.repo, "q")
+
+
+# --- the cover ---------------------------------------------------------------
+
+def cover(space, token="tok", message="", query=""):
+    return ui.records_index(space, token, message, query).decode("utf-8")
+
+
+def test_the_cover_shows_the_questions_not_just_the_directory_names(tmp_path):
+    from grrp import actions
+
+    repo, _ = actions.create_record(
+        tmp_path, "trust", "Is trust a property between individuals?", use_git=False
+    )
+    from conftest import Workspace as W
+
+    W(repo.root).run("claim", "-m", "Trust obtains between individuals.")
+
+    body = cover(ui.Workspace(tmp_path))
+    assert "Is trust a property between individuals?" in body
+    assert "Trust obtains between individuals." in body, "the live position is on the cover"
+
+
+def test_the_cover_marks_what_is_unanswered(tmp_path):
+    from conftest import Workspace as W
+    from grrp import actions
+
+    repo, _ = actions.create_record(tmp_path, "q", "A question?", use_git=False)
+    space = W(repo.root)
+    space.run("claim", "-m", "A position.")
+    space.run("challenge", "-m", "An objection nobody has answered.")
+
+    body = cover(ui.Workspace(tmp_path))
+    assert "unanswered" in body
+    assert "An objection nobody has answered." in body
+
+
+def test_the_cover_offers_both_ways_in(tmp_path):
+    """Creating a record and continuing someone else's are the two doors, and a
+    community reaches you through the second."""
+    body = cover(ui.Workspace(tmp_path))
+    assert "Start a record" in body
+    assert "Continue someone's record" in body
+    assert "path to a bundle they sent you" in body
+
+
+def test_the_cover_says_there_is_no_directory_of_other_people(tmp_path):
+    body = cover(ui.Workspace(tmp_path))
+    assert "no directory of other" in body
+    assert "party to every entry" in body
+
+
+# --- search ------------------------------------------------------------------
+
+def test_search_finds_a_question_a_title_and_a_position(tmp_path):
+    from conftest import Workspace as W
+    from grrp import actions
+
+    repo, _ = actions.create_record(
+        tmp_path, "trust", "Is trust a property between individuals?", use_git=False
+    )
+    W(repo.root).run("claim", "-m", "Trust is shaped by asymmetry of power.")
+    actions.create_record(tmp_path, "transfer", "Does the method transfer?", use_git=False)
+
+    space = ui.Workspace(tmp_path)
+    assert [h.record for h in ui.search(space, "trust")] == ["trust"]
+    assert [h.record for h in ui.search(space, "transfer")] == ["transfer"]
+
+    deep = ui.search(space, "asymmetry")
+    assert deep and deep[0].where == "claim", "it looks inside the states, not just the titles"
+    assert "asymmetry" in deep[0].snippet
+
+
+def test_search_is_case_insensitive_and_empty_finds_nothing(tmp_path):
+    from grrp import actions
+
+    actions.create_record(tmp_path, "trust", "Is TRUST a property?", use_git=False)
+    space = ui.Workspace(tmp_path)
+    assert ui.search(space, "trust")
+    assert ui.search(space, "  ") == []
+
+
+def test_search_filters_and_does_not_order_by_relevance(tmp_path):
+    """An ordering by relevance is a measure over trajectories, and a measure
+    adopted to direct attention becomes the thing people work towards."""
+    from grrp import actions
+
+    for name in ("aaa", "bbb", "ccc"):
+        actions.create_record(tmp_path, name, f"A question about trust in {name}?", use_git=False)
+
+    space = ui.Workspace(tmp_path)
+    listed = [name for name, _ in space.records()]
+    assert [h.record for h in ui.search(space, "trust")] == listed, (
+        "matches come back in the order everything else is listed in"
+    )
+
+    body = cover(space, query="trust")
+    assert "does not rank" in body
+    assert "<mark>" in body, "the match is shown, not scored"
+
+    # The page explains why it does not order by relevance, so the check is for
+    # a measure being shown rather than for the word being mentioned.
+    rendered = body.split("</style>")[1].lower()
+    for forbidden in ("best match", "top result", "% match", "relevance:"):
+        assert forbidden not in rendered
+    assert not re.search(r"\d+(\.\d+)?\s*(%|points|pts)", rendered)
+
+
+def test_a_search_that_finds_nothing_says_so(tmp_path):
+    from grrp import actions
+
+    actions.create_record(tmp_path, "trust", "A question?", use_git=False)
+    assert "Nothing here mentions that" in cover(ui.Workspace(tmp_path), query="quarks")
+
+
+# --- the acts are buttons now ------------------------------------------------
+
+def test_every_act_is_a_button_that_says_what_it_does(trajectory):
+    workspace, traj_id = trajectory
+    workspace.run("claim", traj_id, "-m", "A position.")
+    body = page(workspace.repo, traj_id)
+
+    for label in ("Take a position", "Object to this", "Record a decision",
+                  "Abandon this direction", "Record a check", "Connect to it",
+                  "Publish this state"):
+        assert label in body, label
+    assert "<select" not in body, "no assembling the act out of parts first"
+
+
+def test_pressing_a_button_performs_that_act(trajectory):
+    workspace, traj_id = trajectory
+    workspace.run("claim", traj_id, "-m", "Approach A.")
+    doomed = views.current_states(workspace.repo, traj_id)[0]
+
+    ui._perform(
+        workspace.repo, traj_id,
+        {"act": ["abandon"], "message": ["The assumption failed."], "state": [sid(doomed)]},
+    )
+    assert doomed not in views.current_states(workspace.repo, traj_id)
+
+
+def test_an_act_the_tool_does_not_have_is_refused(trajectory):
+    workspace, traj_id = trajectory
+    workspace.run("claim", traj_id, "-m", "A position.")
+    said = ui._perform(
+        workspace.repo, traj_id,
+        {"act": ["merge"], "message": ["Combine them."], "state": [""]},
+    )
+    assert "not an act" in said
+
+
+# --- continuing someone's record from the page -------------------------------
+
+def test_a_bundle_can_be_continued_from_the_cover(trajectory, tmp_path, served):
+    import urllib.parse
+
+    source, _ = trajectory
+    source.run("claim", "-m", "A position from somewhere else.")
+    archive = tmp_path / "traj.zip"
+    source.run("bundle", "-o", str(archive))
+
+    receiver, client = served
+    data = urllib.parse.urlencode({"token": "secret", "bundle": str(archive)}).encode()
+
+    class NoRedirect(urllib.request.HTTPRedirectHandler):
+        def redirect_request(self, *args):
+            return None
+
+    opener = urllib.request.build_opener(NoRedirect)
+    try:
+        opener.open(client.request("/continue", data=data, method="POST"))
+    except urllib.error.HTTPError as redirect:
+        assert redirect.code == 303
+        assert "Continued" in urllib.parse.unquote(redirect.headers["Location"])
+
+    assert receiver.repo.trajectory_ids(), "the record arrived"
+    assert receiver.run("check").exit_code == 0

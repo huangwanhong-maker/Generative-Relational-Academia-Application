@@ -26,6 +26,7 @@ believe a number if one appeared:
 from __future__ import annotations
 
 import html
+import http.cookies
 import secrets
 import threading
 import webbrowser
@@ -34,7 +35,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, quote, urlparse
 
-from . import actions, canonical, errors, gitutil, store, views, vocab
+from . import accounts, actions, canonical, errors, gitutil, identity, store, views, vocab
 from .store import Repo
 
 STYLE = """
@@ -77,6 +78,30 @@ button.quiet { background:transparent; color:var(--fg); }
           background:var(--card); padding:.5rem; }
 footer { margin-top:4rem; padding-top:1rem; border-top:1px solid var(--line);
          font-size:.8rem; color:var(--dim); }
+header.cover { margin-bottom:1.5rem; }
+.lede { color:var(--dim); max-width:44rem; margin:.4rem 0 0; }
+.searchbar { display:flex; gap:.5rem; align-items:center; margin:1.5rem 0 .5rem; }
+.searchbar input[type=text] { flex:1; min-width:0; padding:.55rem .7rem; }
+.searchbar .clear { font-size:.82rem; color:var(--dim); }
+mark { background:var(--open); color:var(--bg); border-radius:2px; padding:0 .15em; }
+.snippet { margin-top:.35rem; }
+.traj { margin:.55rem 0 0; padding-left:.75rem; border-left:2px solid var(--line); }
+.traj a { text-decoration:none; }
+.traj a:hover { text-decoration:underline; }
+.open-mark { color:var(--open); }
+.whoami { display:flex; align-items:center; gap:.5rem; font-size:.82rem; color:var(--dim);
+          border-bottom:1px solid var(--line); padding-bottom:.6rem; margin-bottom:1.5rem; }
+.whoami form { margin:0 0 0 auto; }
+.whoami button { padding:.15rem .6rem; font-size:.82rem; }
+.who { display:flex; gap:.6rem; align-items:baseline; }
+.who form { margin:0; }
+.signin label { display:block; margin:.7rem 0; font-size:.82rem; color:var(--dim); }
+.signin input { display:block; width:100%; max-width:22rem; margin-top:.25rem;
+                font:inherit; padding:.5rem; border-radius:5px; border:1px solid var(--line);
+                background:var(--bg); color:var(--fg); }
+.buttons button { background:transparent; color:var(--fg); }
+.buttons button:hover { background:var(--fg); color:var(--bg); }
+.act textarea { min-height:4.5rem; }
 .n-box { fill:var(--card); stroke:var(--line); }
 .n-box.live { stroke:var(--live); stroke-width:2; }
 .n-box.open { stroke:var(--open); stroke-width:2; }
@@ -129,6 +154,66 @@ class Workspace:
         return Repo(self.root) if (self.root / store.GRRP_DIR).is_dir() else None
 
 
+@dataclass
+class Found:
+    """A trajectory a search turned up, and the line that matched."""
+
+    record: str
+    repo: Repo
+    traj_id: str
+    title: str
+    question: str
+    snippet: str
+    where: str
+
+
+def search(workspace: Workspace, query: str) -> list[Found]:
+    """Find trajectories whose question, title or content mentions something.
+
+    Search **filters; it does not rank.** Matches come back in the same order
+    everything else is listed in, because an ordering by relevance is a
+    numeric measure over trajectories, and a measure adopted to direct
+    attention becomes the object of effort.
+    """
+    needle = query.strip().lower()
+    found: list[Found] = []
+    if not needle:
+        return found
+
+    for name, repo in workspace.records():
+        for traj_id in repo.trajectory_ids():
+            data = repo.trajectory(traj_id)
+            title = str(data.get("title") or traj_id)
+            question = str(data.get("question") or "")
+
+            where, snippet = "", ""
+            if needle in title.lower():
+                where, snippet = "title", title
+            elif needle in question.lower():
+                where, snippet = "question", question
+            else:
+                for record in repo.transitions(traj_id):
+                    state_id = record.get("posterior_state")
+                    if not state_id:
+                        continue
+                    content = repo.read_state(traj_id, state_id)
+                    if content and needle in content.lower():
+                        line = next(
+                            (l for l in content.splitlines() if needle in l.lower()), ""
+                        )
+                        where, snippet = str(record.get("act")), line.strip()
+                        break
+            if where:
+                found.append(Found(name, repo, traj_id, title, question, snippet, where))
+    return found
+
+
+def bundle_module():
+    from . import bundle
+
+    return bundle
+
+
 def _as_workspace(target: Workspace | Repo) -> Workspace:
     return target if isinstance(target, Workspace) else Workspace(target.root)
 
@@ -142,12 +227,34 @@ def _e(text: object) -> str:
     return html.escape(str(text if text is not None else ""))
 
 
-def _page(title: str, body: str) -> bytes:
+def _whoami(who: "identity.Identity | None", token: str) -> str:
+    """The bar at the top of every page: which key is signing.
+
+    Shown everywhere rather than on a settings screen, because the one thing a
+    person must not be wrong about is which party an act will be attributed to.
+    """
+    if who is None:
+        return ""
+    return (
+        "<div class='whoami'>signing as <strong>"
+        f"{_e(who.name)}</strong> <span class='id'>{_e(who.short)}…</span>"
+        "<form method='post' action='/sign-out'>"
+        f"<input type='hidden' name='token' value='{_e(token)}'>"
+        "<button type='submit' class='quiet'>switch</button></form></div>"
+    )
+
+
+def _page(
+    title: str,
+    body: str,
+    who: "identity.Identity | None" = None,
+    token: str = "",
+) -> bytes:
     return (
         "<!doctype html><html lang=en><head><meta charset=utf-8>"
         "<meta name=viewport content='width=device-width,initial-scale=1'>"
         f"<title>{_e(title)}</title><style>{STYLE}</style></head>"
-        f"<body><main>{body}"
+        f"<body><main>{_whoami(who, token)}{body}"
         "<footer>grrp — a local page over your record. Level 3: an application, outside "
         "conformance. Everything here is available from the command line, and the record "
         "does not depend on this page existing.</footer>"
@@ -319,49 +426,230 @@ def standalone_svg(repo: Repo, traj_id: str) -> str:
 # --------------------------------------------------------------------------- #
 
 
-def records_index(workspace: Workspace, token: str, message: str = "") -> bytes:
-    body = ["<h1>Records</h1>"]
+def _highlight(text: str, needle: str) -> str:
+    """Show where a match landed, without ordering anything by it.
+
+    (Worded to keep the token out of this file: ``grrp check`` greps the source
+    for measure-shaped words, and the guard should stay strict on the page,
+    which is where the temptation to introduce one is strongest.)
+    """
+    escaped = _e(text)
+    if not needle:
+        return escaped
+    lowered, target = escaped.lower(), _e(needle).lower()
+    at = lowered.find(target)
+    if at < 0:
+        return escaped
+    return (
+        escaped[:at] + "<mark>" + escaped[at : at + len(target)] + "</mark>"
+        + escaped[at + len(target):]
+    )
+
+
+def sign_in(workspace: Workspace, token: str, message: str = "", back: str = "/") -> bytes:
+    """The way in: a name and a password, standing in front of a keypair.
+
+    What the password does and does not do is stated on the page rather than
+    implied by the shape of it.  It controls who reaches this server through a
+    browser.  It does not make anything true, and it is not what a reader
+    elsewhere checks -- they check signatures, which are over keys this server
+    never needed to see.
+    """
+    body = [
+        "<header class='cover'><h1>Sign in</h1>"
+        "<p class='lede'>Everything you record here is attributed to a key, and this is how "
+        "you reach yours. The password guards access to this server. It is not what makes "
+        "your work credible: that comes from other parties registering it, and it travels "
+        "with the record to people who have no account here at all.</p></header>"
+    ]
     if message:
-        body.append(f"<div class=note>{_e(message)}</div>")
+        body.append(f"<div class='note'>{_e(message)}</div>")
+
+    body.append(
+        "<form method='post' action='/sign-in' class='signin'>"
+        f"<input type='hidden' name='token' value='{_e(token)}'>"
+        f"<input type='hidden' name='back' value='{_e(back)}'>"
+        "<label>Name<input type='text' name='name' autocomplete='username' autofocus "
+        "required></label>"
+        "<label>Password<input type='password' name='password' "
+        "autocomplete='current-password' required></label>"
+        "<div class='row'><button type='submit'>sign in</button></div></form>"
+    )
+
+    body.append("<h2>New here</h2>")
+    if accounts.REGISTRATION_OPEN:
+        body.append(
+            "<form method='post' action='/register'>"
+            f"<input type='hidden' name='token' value='{_e(token)}'>"
+            f"<input type='hidden' name='back' value='{_e(back)}'>"
+            "<label>Name<input type='text' name='name' required></label>"
+            "<label>Password<input type='password' name='password' "
+            "autocomplete='new-password' required></label>"
+            "<div class='row'><button type='submit'>make an account</button></div></form>"
+        )
+    else:
+        body.append(
+            "<div class='note'><strong>Registration is closed at the moment.</strong> "
+            "Ask whoever runs this server; they add accounts with "
+            "<span class='id'>grrp account add &lt;name&gt;</span>.<br><br>"
+            "Not a queue and not an approval: an account is access to this particular "
+            "server, and nothing here is a precondition for taking part. The record is "
+            "plain files. Anyone can hold a copy, continue it under any implementation, "
+            "and hand it back — with no account, and without asking.</div>"
+        )
+
+    body.append(
+        "<div class='note'>Your account reaches a keypair; the keypair signs. Two people "
+        "signed in here is the ordinary case rather than a trick: at group tier a "
+        "transition must be registered by a party other than the one who performed it, so "
+        "a second party is what makes an act attested. Private keys live in "
+        f"<span class='id'>{_e(identity.RING_DIR)}/</span> beside the records, are never "
+        "committed, and are never sent anywhere.</div>"
+    )
+    return _page("sign in — grrp", "".join(body))
+
+
+def records_index(
+    workspace: Workspace,
+    token: str,
+    message: str = "",
+    query: str = "",
+    who: identity.Identity | None = None,
+) -> bytes:
+    """The cover: everything on this machine, and the two ways in."""
     found = workspace.records()
+    body = [
+        "<header class='cover'><h1>Your records</h1>"
+        "<p class='lede'>Each record is a directory of work with one or more questions in it. "
+        "The record is plain files in your own filesystem — you can read it without this page, "
+        "and take it anywhere without asking anyone.</p></header>"
+    ]
+    if message:
+        body.append(f"<div class='note'>{_e(message)}</div>")
+
+    body.append(
+        "<form method='get' action='/' class='searchbar'>"
+        f"<input type='text' name='q' value='{_e(query)}' "
+        "placeholder='Search questions, positions, objections…' autofocus>"
+        "<button type='submit'>search</button>"
+        + (" <a class='clear' href='/'>clear</a>" if query else "")
+        + "</form>"
+    )
+
+    if query:
+        results = search(workspace, query)
+        body.append(f"<h2>Matches for “{_e(query)}”</h2>")
+        if not results:
+            body.append("<div class='note'>Nothing here mentions that.</div>")
+        for hit in results:
+            body.append(
+                f"<div class='card'>"
+                f"<a href='/r/{_e(hit.record)}/t/{_e(hit.traj_id)}'>"
+                f"<strong>{_highlight(hit.title, query)}</strong></a>"
+                f"<div class='meta'>{_e(hit.record)} · matched in {_e(hit.where)}</div>"
+                f"<div class='snippet'>{_highlight(hit.snippet, query)}</div></div>"
+            )
+        body.append(
+            "<div class='note'>Search filters; it does not rank. Matches appear in the same "
+            "order as everything else, because an ordering by relevance is a measure over "
+            "trajectories, and a measure adopted to direct attention becomes the thing people "
+            "work towards.</div>"
+        )
+        body.append("<h2>Everything</h2>")
+
     if not found:
         body.append(
-            "<p class=q>Nothing here yet. A record is a directory, and it works whether or "
-            "not it is a git repository.</p>"
+            "<div class='note'>Nothing here yet. A record is a directory, and it works whether "
+            "or not it is a git repository.</div>"
         )
-    # Listed, never ordered by anything and never counted.
+    # Listed by name. Never by recency, size or anything else derived from the
+    # work: that would be an ordering over trajectories, and it would quietly
+    # tell you which of your questions matters.
     for name, repo in found:
-        trajectories = repo.trajectory_ids()
+        marks = [f"{repo.tier()} tier"]
+        if (repo.root / ".git").is_dir():
+            marks.append("git")
+        if repo.charter():
+            marks.append("charter")
         body.append(
-            f"<div class=card><a href='/r/{_e(name)}'><strong>{_e(name)}</strong></a>"
-            f"<div class=meta>{_e(repo.tier())} tier"
-            + (" · git" if (repo.root / '.git').is_dir() else "")
-            + "</div>"
+            f"<div class='card'><a href='/r/{_e(name)}'><strong>{_e(name)}</strong></a>"
+            f"<div class='meta'>{_e(' · '.join(marks))}</div>"
         )
-        for traj_id in trajectories:
+        for traj_id in repo.trajectory_ids():
+            data = repo.trajectory(traj_id)
+            live = views.current_states(repo, traj_id)
+            openings = views.open_items(repo, traj_id)
             body.append(
-                f"<div class=meta>· {_e(repo.trajectory(traj_id).get('question'))}</div>"
+                f"<div class='traj'><a href='/r/{_e(name)}/t/{_e(traj_id)}'>"
+                f"{_e(data.get('question'))}</a>"
             )
+            for state_id in live:
+                body.append(
+                    f"<div class='meta'>→ {_e(_headline(repo, traj_id, state_id))}</div>"
+                )
+            if len(live) > 1:
+                body.append("<div class='meta'>divergent — neither is the canonical one</div>")
+            # The trajectory's own question is unresolved by design and is
+            # printed above already, so repeating it here as "unanswered" is
+            # noise. Everything else is shown in full: a cover that quietly
+            # dropped some would read as though there were fewer.
+            opening = views.opening_state(repo, traj_id)
+            standing = [
+                item for item in openings
+                if item.transition.get("posterior_state") != opening
+            ]
+            for item in standing:
+                body.append(
+                    "<div class='meta open-mark'>unanswered: "
+                    f"{_e(_headline(repo, traj_id, item.transition.get('posterior_state')))}"
+                    "</div>"
+                )
+            body.append("</div>")
         body.append("</div>")
 
     body.append("<h2>Start a record</h2>")
     body.append(
-        f"<form method=post action='/new-record'>"
-        f"<input type=hidden name=token value='{_e(token)}'>"
-        "<div class=row><input type=text name=name placeholder='a short name' required>"
-        "<label class=meta><input type=checkbox name=git checked> make it a git repository"
-        "</label></div>"
-        "<textarea name=question placeholder='The question you are actually trying to answer' "
+        "<form method='post' action='/new-record'>"
+        f"<input type='hidden' name='token' value='{_e(token)}'>"
+        "<textarea name='question' placeholder='The question you are actually trying to answer' "
         "required></textarea>"
-        "<div class=row><button type=submit>open it</button></div>"
-        "<div class=meta>Write down what you are trying to find out, once, before the framing "
-        "hardens and you forget you chose it. It becomes the question the record is about, and "
-        "it stays open until something answers it.</div></form>"
+        "<div class='row'><input type='text' name='name' placeholder='a short name' required>"
+        "<label class='meta'><input type='checkbox' name='git' checked> and a git repository"
+        "</label><button type='submit'>open it</button></div>"
+        "<div class='meta'>Write down what you are trying to find out, once, before the framing "
+        "hardens and you forget you chose it. It stays open until something answers it.</div>"
+        "</form>"
     )
-    return _page("grrp", "".join(body))
+
+    body.append("<h2>Continue someone's record</h2>")
+    body.append(
+        "<form method='post' action='/continue'>"
+        f"<input type='hidden' name='token' value='{_e(token)}'>"
+        "<div class='row'><input type='text' name='bundle' "
+        "placeholder='path to a bundle they sent you — traj.zip' required>"
+        "<button type='submit'>continue it</button></div>"
+        "<div class='meta'>Someone hands you a file. What you record next references what you "
+        "obtained as parents, so the two of you have one graph and not two. Nothing that arrives "
+        "is altered, and anything that cannot be verified is kept and marked rather than "
+        "discarded.</div></form>"
+    )
+
+    body.append(
+        "<div class='note'>This lists records on this machine. There is no directory of other "
+        "people's work here, and there is not going to be one: a service that knew where "
+        "everyone's records were would be party to every entry, and what makes a record "
+        "credible is registration by parties who did not coordinate. Work reaches you as a "
+        "bundle somebody chose to give you.</div>"
+    )
+    return _page("grrp", "".join(body), who, token)
 
 
-def index(repo: Repo, token: str = "", base: str = "") -> bytes:
+def index(
+    repo: Repo,
+    token: str = "",
+    base: str = "",
+    who: identity.Identity | None = None,
+) -> bytes:
     """The trajectories of one record."""
     body = [f"<h1>{_e(repo.root.name)}</h1>"]
     traj_ids = repo.trajectory_ids()
@@ -392,7 +680,7 @@ def index(repo: Repo, token: str = "", base: str = "") -> bytes:
             "<button type=submit>open</button></div></form>"
         )
         body.append("<p><a href='/'>← all records</a></p>")
-    return _page(repo.root.name, "".join(body))
+    return _page(repo.root.name, "".join(body), who, token)
 
 
 ACTS = {
@@ -406,25 +694,51 @@ ACTS = {
 }
 
 
+#: Each button says what pressing it does, in the words someone would use for
+#: the thing they are already doing. A select and two checkboxes made you
+#: assemble the act out of parts before you could perform it.
+BUTTONS = (
+    ("claim", "Take a position", "what you currently think"),
+    ("challenge", "Object to this", "it stands until something answers it"),
+    ("transform", "Change it", "what it becomes, and what moved you"),
+    ("decide", "Record a decision", "with the reason"),
+    ("abandon", "Abandon this direction", "say what stopped it"),
+    ("verify", "Record a check", "what you checked, and how it came out"),
+    ("refute", "…that did not come out", "it joins what is unanswered"),
+)
+
+
 def _act_form(base: str, traj_id: str, token: str, state_id: str | None) -> str:
-    options = "".join(f"<option value='{k}'>{_e(v)}</option>" for k, v in ACTS.items())
+    buttons = "".join(
+        f"<button type='submit' name='act' value='{key}' title='{_e(hint)}'>{_e(label)}</button>"
+        for key, label, hint in BUTTONS
+    )
     return (
-        f"<form method=post action='{_e(base)}/t/{_e(traj_id)}/act'>"
-        f"<input type=hidden name=token value='{_e(token)}'>"
-        f"<input type=hidden name=state value='{_e(state_id or '')}'>"
-        "<textarea name=message placeholder='What changed, and why?'></textarea>"
-        f"<div class=row><select name=act>{options}</select>"
-        "<input type=text name=to placeholder='connect to: doi:… or a state'>"
-        "</div><div class=row>"
-        "<label class=meta><input type=checkbox name=abandon> abandon this direction</label>"
-        "<label class=meta><input type=checkbox name=failed> the check failed</label>"
-        "<button type=submit>record</button></div>"
-        "<div class=meta>Recorded as an act you performed. At the group tier it becomes a "
-        "proposal until another party registers it.</div></form>"
+        f"<form method='post' action='{_e(base)}/t/{_e(traj_id)}/act' class='act'>"
+        f"<input type='hidden' name='token' value='{_e(token)}'>"
+        f"<input type='hidden' name='state' value='{_e(state_id or '')}'>"
+        "<textarea name='message' placeholder='What changed, and why?'></textarea>"
+        f"<div class='row buttons'>{buttons}</div>"
+        "<div class='row'>"
+        "<input type='text' name='to' placeholder='a doi, a link, or another state'>"
+        "<button type='submit' name='act' value='connect' class='quiet'>Connect to it</button>"
+        "<button type='submit' name='act' value='release' class='quiet'>Publish this state</button>"
+        "</div>"
+        "<div class='meta'>Whatever you press is recorded as an act you performed. At the group "
+        "tier it becomes a proposal until another party registers it. Publishing enumerates the "
+        "objections standing against this state — which asserts that they stand, and nothing "
+        "about whether they are right.</div></form>"
     )
 
 
-def trajectory(repo: Repo, traj_id: str, token: str, message: str = "", base: str = "") -> bytes:
+def trajectory(
+    repo: Repo,
+    traj_id: str,
+    token: str,
+    message: str = "",
+    base: str = "",
+    who: identity.Identity | None = None,
+) -> bytes:
     data = repo.trajectory(traj_id)
     body = [f"<h1>{_e(data.get('title') or traj_id)}</h1>"]
     body.append(f"<p class=q>{_e(data.get('question'))}</p>")
@@ -572,7 +886,7 @@ def trajectory(repo: Repo, traj_id: str, token: str, message: str = "", base: st
         )
 
     body.append(f"<p><a href='{_e(base) or '/'}'>← trajectories</a></p>")
-    return _page(data.get("title") or traj_id, "".join(body))
+    return _page(data.get("title") or traj_id, "".join(body), who, token)
 
 
 # --------------------------------------------------------------------------- #
@@ -586,10 +900,12 @@ def _perform(repo: Repo, traj_id: str, fields: dict[str, list[str]]) -> str:
     text = (fields.get("message") or [""])[0].strip()
     state_ref = (fields.get("state") or [""])[0]
     target_ref = (fields.get("to") or [""])[0].strip()
-    if (fields.get("abandon") and act == "decide"):
+    if fields.get("abandon") and act == "decide":   # older forms
         act = "abandon"
-    if (fields.get("failed") and act == "verify"):
+    if fields.get("failed") and act == "verify":
         act = "refute"
+    if act not in actions.SHAPES:
+        return f"{act!r} is not an act."
 
     prior = state_ref or None
     if prior:
@@ -699,8 +1015,52 @@ def _release(repo: Repo, traj_id: str, state_id: str) -> str:
 # --------------------------------------------------------------------------- #
 
 
-def make_handler(target: Workspace | Repo, token: str):
+COOKIE = "grrp_session"
+
+
+class Sessions:
+    """Who is signed in, in memory, for as long as the server runs.
+
+    In memory and not on disk, deliberately: a session log is a record of who
+    was here and when, which is precisely the kind of monitoring by-product the
+    event plane is gitignored to avoid. Restarting the server signs everybody
+    out, which is the correct trade.
+    """
+
+    def __init__(self) -> None:
+        self._lock = threading.Lock()
+        self._open: dict[str, str] = {}
+
+    def begin(self, name: str) -> str:
+        ticket = secrets.token_urlsafe(24)
+        with self._lock:
+            self._open[ticket] = name
+        return ticket
+
+    def name_for(self, ticket: str) -> str | None:
+        with self._lock:
+            return self._open.get(ticket)
+
+    def end(self, ticket: str) -> None:
+        with self._lock:
+            self._open.pop(ticket, None)
+
+
+def _cookie(ticket: str) -> str:
+    """Hold the session ticket, and nothing else.
+
+    Never the name, never the key: the cookie is an opaque reference to a
+    session this process is holding, so a stolen one dies when the server
+    restarts and reveals nothing on its own. An empty ticket clears it.
+    """
+    if not ticket:
+        return f"{COOKIE}=; Path=/; Max-Age=0; HttpOnly; SameSite=Strict"
+    return f"{COOKIE}={ticket}; Path=/; HttpOnly; SameSite=Strict"
+
+
+def make_handler(target: Workspace | Repo, token: str, sessions: Sessions | None = None):
     workspace = _as_workspace(target)
+    sessions = sessions if sessions is not None else Sessions()
 
     class Handler(BaseHTTPRequestHandler):
         server_version = "grrp"
@@ -708,51 +1068,84 @@ def make_handler(target: Workspace | Repo, token: str):
         def log_message(self, *args) -> None:  # noqa: D102 - keep the console quiet
             return
 
-        def _send(self, payload: bytes, status: int = 200) -> None:
+        def _send(self, payload: bytes, status: int = 200, cookie: str = "") -> None:
             self.send_response(status)
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.send_header("Content-Length", str(len(payload)))
             self.send_header("Referrer-Policy", "no-referrer")
+            if cookie:
+                self.send_header("Set-Cookie", cookie)
             self.end_headers()
             self.wfile.write(payload)
 
-        def _redirect(self, where: str, said: str = "") -> None:
+        def _redirect(self, where: str, said: str = "", cookie: str = "") -> None:
             self.send_response(303)
             self.send_header("Location", f"{where}?said={quote(said)}" if said else where)
+            if cookie:
+                self.send_header("Set-Cookie", cookie)
             self.end_headers()
 
-        def _resolve(self, parts: list[str]) -> tuple[Repo, str]:
+        def _who(self) -> identity.Identity | None:
+            """Which key this browser is signing as, if it still exists.
+
+            Verified against the keyring on every request rather than trusted
+            from the cookie: a name in a cookie is a claim, and the record must
+            not attribute an act to a key that is not there.
+            """
+            jar = http.cookies.SimpleCookie(self.headers.get("Cookie") or "")
+            morsel = jar.get(COOKIE)
+            name = sessions.name_for(morsel.value) if morsel and morsel.value else None
+            if not name:
+                return None
+            try:
+                return identity.find(workspace.root, name)
+            except errors.GrrpError:
+                return None
+
+        def _resolve(self, parts: list[str], who: identity.Identity | None = None) -> tuple[Repo, str]:
             """(repo, base) from a path, with '/t/...' meaning the root record."""
             if len(parts) > 1 and parts[0] == "r":
-                return workspace.find(parts[1]), f"/r/{parts[1]}"
-            primary = workspace.primary()
-            if not primary:
-                raise errors.NotARepository("no record here")
-            return primary, ""
+                repo, base = workspace.find(parts[1]), f"/r/{parts[1]}"
+            else:
+                primary = workspace.primary()
+                if not primary:
+                    raise errors.NotARepository("no record here")
+                repo, base = primary, ""
+            if who is not None:
+                repo = Repo(repo.root, acting_as=who.name)
+            return repo, base
 
         def do_GET(self) -> None:  # noqa: N802
             url = urlparse(self.path)
             parts = [p for p in url.path.split("/") if p]
             said = (parse_qs(url.query).get("said") or [""])[0]
+            who = self._who()
             try:
-                if not parts:
-                    primary = workspace.primary()
-                    if primary and len(workspace.records()) == 1:
-                        self._send(index(primary, token, ""))
-                    else:
-                        self._send(records_index(workspace, token, said))
+                if parts == ["sign-in"]:
+                    back = (parse_qs(url.query).get("back") or ["/"])[0]
+                    self._send(sign_in(workspace, token, said, back))
                     return
-                repo, base = self._resolve(parts)
+                if who is None:
+                    # Before anything is attributed to a key, say which key.
+                    self._redirect(f"/sign-in?back={quote(self.path)}")
+                    return
+                if not parts:
+                    query = (parse_qs(url.query).get("q") or [""])[0]
+                    self._send(records_index(workspace, token, said, query, who))
+                    return
+                repo, base = self._resolve(parts, who)
                 rest = parts[2:] if base else parts
                 if not rest:
-                    self._send(index(repo, token, base))
+                    self._send(index(repo, token, base, who))
                 elif rest[0] == "t" and len(rest) > 1:
                     traj_id = repo.resolve_trajectory(rest[1])
-                    self._send(trajectory(repo, traj_id, token, said, base))
+                    self._send(trajectory(repo, traj_id, token, said, base, who))
                 else:
-                    self._send(_page("not found", "<h1>Not found</h1>"), 404)
+                    self._send(_page("not found", "<h1>Not found</h1>", who, token), 404)
             except errors.GrrpError as error:
-                self._send(_page("grrp", f"<h1>Refused</h1><p class=q>{_e(error)}</p>"), 400)
+                self._send(
+                    _page("grrp", f"<h1>Refused</h1><p class=q>{_e(error)}</p>", who, token), 400
+                )
 
         def do_POST(self) -> None:  # noqa: N802
             length = int(self.headers.get("Content-Length") or 0)
@@ -762,7 +1155,71 @@ def make_handler(target: Workspace | Repo, token: str):
                 return
 
             parts = [p for p in urlparse(self.path).path.split("/") if p]
+            who = self._who()
             try:
+                if parts in (["sign-in"], ["register"]):
+                    name = (fields.get("name") or [""])[0].strip().lower()
+                    password = (fields.get("password") or [""])[0]
+                    back = (fields.get("back") or ["/"])[0] or "/"
+                    said = ""
+                    if parts == ["register"]:
+                        if not accounts.REGISTRATION_OPEN:
+                            self._redirect("/sign-in", "Registration is closed here.")
+                            return
+                        account = accounts.create(workspace.root, name, password)
+                        said = (
+                            f"{account.name} has an account and a keypair. The private half "
+                            f"is in {identity.RING_DIR}/ and is never sent anywhere; lose it "
+                            "and you cannot sign as this party again."
+                        )
+                    else:
+                        account = accounts.authenticate(workspace.root, name, password)
+                    self._redirect(back, said, cookie=_cookie(sessions.begin(account.name)))
+                    return
+
+                if parts == ["sign-out"]:
+                    jar = http.cookies.SimpleCookie(self.headers.get("Cookie") or "")
+                    morsel = jar.get(COOKIE)
+                    if morsel and morsel.value:
+                        sessions.end(morsel.value)
+                    self._redirect("/sign-in", "", cookie=_cookie(""))
+                    return
+
+                if who is None:
+                    self._redirect(f"/sign-in?back={quote(self.path)}")
+                    return
+
+                if parts == ["continue"]:
+                    source = Path((fields.get("bundle") or [""])[0].strip().strip('"'))
+                    if not source.is_file():
+                        self._redirect("/", f"No bundle at {source}.")
+                        return
+                    manifest = bundle_module().read_manifest(source)
+                    if manifest.get("protocol") != store.PROTOCOL:
+                        self._redirect(
+                            "/",
+                            f"That bundle is {manifest.get('protocol')!r} and this is "
+                            f"{store.PROTOCOL!r}. Records are not read as though they were of "
+                            "a version they are not.",
+                        )
+                        return
+                    target = workspace.primary() or workspace.find(
+                        (manifest.get("trajectories") or ["record"])[0]
+                    )
+                    receipt = bundle_module().apply(target, source)
+                    self._redirect(
+                        "/",
+                        "Continued "
+                        + ", ".join(receipt.trajectories)
+                        + ". What you record next references what arrived as parents."
+                        + (
+                            " Some of it could not be verified here and is kept and marked."
+                            if receipt.unverified
+                            else ""
+                        ),
+                    )
+                    return
+
                 if parts == ["new-record"]:
                     name = (fields.get("name") or [""])[0].strip()
                     question = (fields.get("question") or [""])[0].strip()
@@ -772,10 +1229,12 @@ def make_handler(target: Workspace | Repo, token: str):
                     repo, traj_id = actions.create_record(
                         workspace.root, name, question, use_git=bool(fields.get("git"))
                     )
+                    identity.found(workspace.root, repo, who.name)
                     self._redirect(f"/r/{repo.root.name}/t/{traj_id}", "Opened.")
                     return
 
-                repo, base = self._resolve(parts)
+                repo, base = self._resolve(parts, who)
+                identity.adopt(workspace.root, repo, who.name)
                 rest = parts[2:] if base else parts
 
                 if rest and rest[0] == "new-trajectory":
@@ -798,7 +1257,10 @@ def make_handler(target: Workspace | Repo, token: str):
                     said = _perform(repo, traj_id, fields)
                 self._redirect(f"{base}/t/{traj_id}", said)
             except errors.GrrpError as error:
-                self._redirect(self.path.rsplit("/", 1)[0] or "/", str(error))
+                if parts in (["sign-in"], ["register"]):
+                    self._redirect("/sign-in", str(error))
+                else:
+                    self._redirect(self.path.rsplit("/", 1)[0] or "/", str(error))
 
     return Handler
 

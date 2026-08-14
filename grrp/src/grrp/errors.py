@@ -23,6 +23,14 @@ class UnknownReference(GrrpError):
     pass
 
 
+class Refused(GrrpError):
+    """Input the tool will not act on, for a reason the message gives.
+
+    Distinct from :class:`ConstraintViolation`, which names the protocol
+    constraint that forbids the thing.  This one is ordinary bad input.
+    """
+
+
 class ConstraintViolation(GrrpError):
     """A refusal required by the protocol.
 
