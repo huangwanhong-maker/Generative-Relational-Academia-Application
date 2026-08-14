@@ -1,0 +1,8 @@
+# Line endings are not cosmetic in this project. A state identifier is the
+# hash of the bytes of its file, and anything that rewrites newlines in transit
+# breaks verification everywhere downstream. The same applies to the vector
+# file that holds the two implementations together.
+*           text=auto eol=lf
+*.json      -text
+*.ts        text eol=lf
+*.tsx       text eol=lf
