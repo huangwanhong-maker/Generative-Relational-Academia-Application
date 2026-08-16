@@ -8,6 +8,7 @@
 
 import { Link } from 'react-router-dom'
 
+import { Markdown } from '../Markdown'
 import type { Project } from '../api'
 
 export function ProjectCard({ project }: { project: Project }) {
@@ -22,7 +23,7 @@ export function ProjectCard({ project }: { project: Project }) {
         {project.disclosure === 'listed' ? '' : ' · not shared here'}
       </div>
 
-      {project.description && <div className="body">{project.description.trim()}</div>}
+      {project.description && <Markdown source={project.description} className="tight" />}
 
       {project.trajectories.map((trajectory) => (
         <div className="traj" key={trajectory.trajId}>

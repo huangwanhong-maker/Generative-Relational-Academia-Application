@@ -369,7 +369,9 @@ describe('material is not evidence', () => {
 
   it('refuses a name that would escape the files directory', async () => {
     const { session } = await openTrust()
-    for (const name of ['../.grrp/profile.yaml', '.gra-host.json', 'a/b.txt', '..']) {
+    // 'a/b.txt' is no longer here: folders are allowed, and only escaping is
+    // refused. The full guard has its own tests in paths.test.ts.
+    for (const name of ['../.grrp/profile.yaml', '.gra-host.json', 'a/../../b', '..']) {
       const reply = await app.fastify.inject({
         method: 'POST',
         url: '/api/projects/trust/files',

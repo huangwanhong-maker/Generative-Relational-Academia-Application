@@ -72,6 +72,11 @@ export interface TrajectoryDetail {
   graph: string | null
 }
 
+export interface CitedArtefact {
+  ref: string
+  label: string
+}
+
 export interface GraphNode {
   id: string
   shape: 'transition' | 'artefact'
@@ -83,6 +88,8 @@ export interface GraphNode {
   label: string
   attested: boolean
   performed: string
+  /** What this transition committed to, by hash. Part of the record. */
+  cited: CitedArtefact[]
 }
 
 export interface GraphEdge {
@@ -185,6 +192,27 @@ export const api = {
       `/api/projects/${encodeURIComponent(slug)}/connections`,
       { method: 'POST', body: JSON.stringify(body) },
     ),
+
+  /** A node's workspace. Applicative: nothing signed refers to it. */
+  nodeFiles: (slug: string, nodeId: string) =>
+    request<{ files: ProjectFile[] }>(
+      `/api/projects/${encodeURIComponent(slug)}/nodes/${encodeURIComponent(nodeId)}/files`,
+    ),
+
+  nodeFileUrl: (slug: string, nodeId: string, name: string) =>
+    `/api/projects/${encodeURIComponent(slug)}/nodes/${encodeURIComponent(nodeId)}/files/${name
+      .split('/')
+      .map(encodeURIComponent)
+      .join('/')}`,
+
+  uploadNodeFile: (slug: string, nodeId: string, name: string, contentBase64: string) =>
+    request<ProjectFile & { note: string }>(
+      `/api/projects/${encodeURIComponent(slug)}/nodes/${encodeURIComponent(nodeId)}/files`,
+      { method: 'POST', body: JSON.stringify({ name, contentBase64 }) },
+    ),
+
+  removeNodeFile: (slug: string, nodeId: string, name: string) =>
+    request<{ removed: string }>(api.nodeFileUrl(slug, nodeId, name), { method: 'DELETE' }),
 
   files: (slug: string) =>
     request<{ files: ProjectFile[] }>(`/api/projects/${encodeURIComponent(slug)}/files`),

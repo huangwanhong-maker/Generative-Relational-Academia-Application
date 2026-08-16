@@ -10,6 +10,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 
 import { ApiError, api, type Project, type TrajectoryDetail, type TransitionView } from '../api'
+import { Markdown } from '../Markdown'
 import { Modal } from '../Modal'
 
 /** What each act leaves behind, in the words a person would use for it. */
@@ -40,7 +41,7 @@ function Transition({ transition }: { transition: TransitionView }) {
         {transition.attested ? ' · attested' : ' · unattested'}
       </div>
       {transition.body ? (
-        <p className="body">{transition.body.trim()}</p>
+        <Markdown source={transition.body} />
       ) : (
         <p className="meta">(content not held here)</p>
       )}

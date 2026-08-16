@@ -32,7 +32,9 @@ import {
   projectGraph,
   runGrrp,
   listFiles,
+  nodeArea,
   readProjectFile,
+  removeProjectFile,
   readTrajectoryDetail,
   slugify,
   trajectoryGraph,
@@ -431,6 +433,115 @@ export async function buildApp(options: Options): Promise<App> {
     return gitHistory(options.recordsRoot, slug)
   })
 
+  /**
+   * A node's workspace: its own files and folders.
+   *
+   * **Applicative, not protocol.** These files are ordinary material sitting in
+   * `nodes/<transition>/`. Nothing signed refers to them, they may be changed
+   * or removed at any time, and none of it is recorded.
+   *
+   * That separation is what makes a mutable per-node folder safe at all. A
+   * transition is never edited (C3); a signature covering a folder whose
+   * contents could change would still verify after the change, which is worse
+   * than failing because nothing would tell you.
+   *
+   * Material joins the record when a transition **cites** it by the hash shown
+   * here — an act, performed deliberately, through `connect`.
+   *
+   * One consequence worth stating: a workspace travels when the directory is
+   * copied, and **not** in a bundle. A bundle carries trajectories, states and
+   * transitions. What travels of a cited artefact is its hash, which is what
+   * separability means (C8).
+   */
+  fastify.get('/api/projects/:slug/nodes/:nodeId/files', async (request, reply) => {
+    const { slug, nodeId } = request.params as { slug: string; nodeId: string }
+    if (!(await visible(slug, request))) {
+      return reply.code(404).send({ error: 'no project by that name here' })
+    }
+    try {
+      return { files: listFiles(options.recordsRoot, slug, nodeArea(nodeId)) }
+    } catch (error) {
+      return reply.code(400).send({ error: String((error as Error).message) })
+    }
+  })
+
+  fastify.get('/api/projects/:slug/nodes/:nodeId/files/*', async (request, reply) => {
+    const { slug, nodeId } = request.params as { slug: string; nodeId: string }
+    const name = (request.params as Record<string, string>)['*'] ?? ''
+    if (!(await visible(slug, request))) {
+      return reply.code(404).send({ error: 'no project by that name here' })
+    }
+    try {
+      const bytes = readProjectFile(options.recordsRoot, slug, name, nodeArea(nodeId))
+      if (!bytes) return reply.code(404).send({ error: 'no such file in this workspace' })
+      return reply.type('application/octet-stream').send(bytes)
+    } catch (error) {
+      return reply.code(400).send({ error: String((error as Error).message) })
+    }
+  })
+
+  fastify.post(
+    '/api/projects/:slug/nodes/:nodeId/files',
+    { onRequest: requireSession },
+    async (request, reply) => {
+      const { slug, nodeId } = request.params as { slug: string; nodeId: string }
+      const project = await getProject(db, slug)
+      if (!project) return reply.code(404).send({ error: 'no project by that name here' })
+      if (project.openedBy !== request.session!.party) {
+        return reply.code(403).send({ error: 'only the party who created a project may add to it' })
+      }
+      const body = request.body as { name?: string; contentBase64?: string }
+      if (!body.name || typeof body.contentBase64 !== 'string') {
+        return reply.code(400).send({ error: 'a file needs a name and its bytes' })
+      }
+      try {
+        const file = writeProjectFile(
+          options.recordsRoot,
+          slug,
+          body.name,
+          Buffer.from(body.contentBase64, 'base64'),
+          nodeArea(nodeId),
+        )
+        return reply.code(201).send({
+          ...file,
+          note:
+            'In the workspace, and nothing was recorded. Cite this digest from a transition ' +
+            'to make it part of the record.',
+        })
+      } catch (error) {
+        return reply.code(400).send({ error: String((error as Error).message) })
+      }
+    },
+  )
+
+  /**
+   * Remove something from a workspace.
+   *
+   * Allowed only here, and only because nothing in the record refers to it. A
+   * cited artefact is referenced by hash from a signed transition; removing
+   * those bytes is a redaction, which is `grrp redact` and leaves a mark
+   * saying something was removed and on what ground.
+   */
+  fastify.delete(
+    '/api/projects/:slug/nodes/:nodeId/files/*',
+    { onRequest: requireSession },
+    async (request, reply) => {
+      const { slug, nodeId } = request.params as { slug: string; nodeId: string }
+      const name = (request.params as Record<string, string>)['*'] ?? ''
+      const project = await getProject(db, slug)
+      if (!project) return reply.code(404).send({ error: 'no project by that name here' })
+      if (project.openedBy !== request.session!.party) {
+        return reply.code(403).send({ error: 'only the party who created a project may change it' })
+      }
+      try {
+        const gone = removeProjectFile(options.recordsRoot, slug, name, nodeArea(nodeId))
+        return gone ? { removed: name } : reply.code(404).send({ error: 'no such file' })
+      } catch (error) {
+        return reply.code(400).send({ error: String((error as Error).message) })
+      }
+    },
+  )
+
   // --- search --------------------------------------------------------------
 
   fastify.get('/api/search', async (request) => {
@@ -455,13 +566,27 @@ export async function buildApp(options: Options): Promise<App> {
 
   if (options.clientRoot) {
     const { default: fastifyStatic } = await import('@fastify/static')
-    await fastify.register(fastifyStatic, { root: options.clientRoot, wildcard: false })
-    const shell = readFileSync(join(options.clientRoot, 'index.html'), 'utf-8')
+    // Under a prefix, and with the wildcard on. `wildcard: false` registers one
+    // route per file at boot, so any rebuild leaves the new hashed filenames
+    // unregistered -- they fall through to the fallback below and the browser
+    // is handed HTML where it asked for JavaScript. It fails as a blank page
+    // with a MIME warning, which is a long way from the cause.
+    await fastify.register(fastifyStatic, {
+      root: join(options.clientRoot, 'assets'),
+      prefix: '/assets/',
+    })
+    const shellPath = join(options.clientRoot, 'index.html')
+    // Read per request in development, once in production. Read once always,
+    // and rebuilding the client leaves the server handing out a document that
+    // names asset files no longer on disk -- a blank page with no error, which
+    // is the worst way for anything to fail.
+    let cached = dev ? '' : readFileSync(shellPath, 'utf-8')
     fastify.setNotFoundHandler(async (request, reply) => {
       if (request.url.startsWith('/api/')) {
         return reply.code(404).send({ error: 'no such route' })
       }
-      return reply.type('text/html').send(shell)
+      if (dev) cached = readFileSync(shellPath, 'utf-8')
+      return reply.type('text/html').send(cached)
     })
   }
 

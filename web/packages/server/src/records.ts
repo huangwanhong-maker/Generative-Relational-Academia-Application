@@ -26,7 +26,7 @@ import {
   statSync,
   writeFileSync,
 } from 'node:fs'
-import { join, resolve } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
 
 import { parse as parseYaml } from 'yaml'
 
@@ -345,56 +345,107 @@ export interface ProjectFile {
 }
 
 const FILES_DIR = 'files'
+const NODES_DIR = 'nodes'
 
 /**
- * Names that are a single path segment, and nothing clever.
+ * Where a node's workspace lives.
+ *
+ * `nodes/<transition>/` is **applicative**, not protocol. It is an ordinary
+ * folder, it may be changed at any time, and nothing signed refers to it.
+ *
+ * That separation is what makes a mutable per-node folder safe at all. A
+ * transition is never edited (C3); if a signature covered a folder whose
+ * contents could change, the node would mean something different tomorrow than
+ * when it was signed and the signature would still verify -- which is worse
+ * than it failing, because nothing would tell you. Nothing here is covered, so
+ * nothing can move underneath.
+ *
+ * Material becomes part of the record when a transition **cites** it by hash,
+ * through the `artefacts` field the skeleton already carries. That is an act,
+ * and it is performed deliberately.
+ */
+export function nodeArea(nodeId: string): string {
+  return `${NODES_DIR}/${safeSegment(nodeId.split(':').pop() ?? nodeId)}`
+}
+
+/**
+ * One path segment, and nothing clever.
  *
  * Rejecting traversal is the obvious half. The less obvious half is rejecting
- * leading dots, so that no upload can land on `.grrp/`, `.git/` or the host
- * sidecar and rewrite the record through the file tab.
+ * leading dots, so no upload can land on `.grrp/`, `.git/` or the host sidecar
+ * and rewrite the record through a file tab.
  *
- * This **refuses** a name with a directory in it rather than quietly reducing
- * it to its last segment. Stripping would be equally safe and would silently
- * store something other than what was asked for, which is the habit that makes
- * a tool untrustworthy in the places where being wrong is not merely untidy.
+ * This **refuses** rather than quietly reducing a name to its last segment.
+ * Stripping would be equally safe and would silently store something other
+ * than what was asked for, which is the habit that makes a tool untrustworthy
+ * in the places where being wrong is not merely untidy.
  */
-export function safeFileName(name: string): string {
-  const trimmed = name.trim()
+function safeSegment(segment: string): string {
+  const trimmed = segment.trim()
   const wrong =
     !trimmed ||
-    /[\/]/.test(trimmed) ||
     trimmed.startsWith('.') ||
     trimmed.includes('..') ||
     // eslint-disable-next-line no-control-regex
-    /[ -]/.test(trimmed) ||
+    /[ -<>:"|?*\/]/.test(trimmed) ||
     trimmed.length > 128
   if (wrong) {
     throw new Error(
-      `${JSON.stringify(name)} will not do as a file name: one plain name, no directories, ` +
-        'not starting with a dot, up to 128 characters.',
+      `${JSON.stringify(segment)} will not do as a name: letters, digits and ordinary ` +
+        'punctuation, not starting with a dot, up to 128 characters per segment.',
     )
   }
   return trimmed
 }
 
-export function listFiles(root: string, slug: string): ProjectFile[] {
-  const dir = join(root, slug, FILES_DIR)
+/** A relative path of safe segments. Folders are allowed; escaping is not. */
+export function safeFilePath(name: string): string {
+  const segments = name.trim().split(String.fromCharCode(92)).join("/").split('/').filter(Boolean)
+  if (!segments.length || segments.length > 8) {
+    throw new Error(`${JSON.stringify(name)} will not do as a path`)
+  }
+  return segments.map(safeSegment).join('/')
+}
+
+/** Kept for the project-wide store, which is one flat area. */
+export function safeFileName(name: string): string {
+  return safeFilePath(name)
+}
+
+export interface ProjectFile {
+  /** Relative to the area. May contain folders. */
+  name: string
+  size: number
+  /** state:sha256:… over the bytes as they sit on disk. Citable as an artefact. */
+  digest: string
+  modified: string
+}
+
+function walk(base: string, prefix = ''): ProjectFile[] {
+  const dir = prefix ? join(base, prefix) : base
   if (!existsSync(dir)) return []
-  return readdirSync(dir, { withFileTypes: true })
-    .filter((entry) => entry.isFile())
-    .map((entry) => {
-      const path = join(dir, entry.name)
-      const bytes = readFileSync(path)
-      return {
-        name: entry.name,
+  const out: ProjectFile[] = []
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const relative = prefix ? `${prefix}/${entry.name}` : entry.name
+    if (entry.isDirectory()) {
+      out.push(...walk(base, relative))
+    } else if (entry.isFile()) {
+      const bytes = readFileSync(join(base, relative))
+      out.push({
+        name: relative,
         size: bytes.length,
         digest: `state:sha256:${createHash('sha256').update(bytes).digest('hex')}`,
-        modified: statSync(path).mtime.toISOString(),
-      }
-    })
-    // By name. Not by size, not by recency: an ordering here would be a
-    // measure over the project's material, and would say which mattered.
-    .sort((a, b) => a.name.localeCompare(b.name))
+        modified: statSync(join(base, relative)).mtime.toISOString(),
+      })
+    }
+  }
+  // By path. Not by size, not by recency: an ordering here would be a measure
+  // over the project's material, and would say which of it mattered.
+  return out.sort((a, b) => a.name.localeCompare(b.name))
+}
+
+export function listFiles(root: string, slug: string, area = FILES_DIR): ProjectFile[] {
+  return walk(join(root, slug, area))
 }
 
 export function writeProjectFile(
@@ -402,19 +453,40 @@ export function writeProjectFile(
   slug: string,
   name: string,
   bytes: Buffer,
+  area = FILES_DIR,
 ): ProjectFile {
-  const safe = safeFileName(name)
-  const dir = join(root, slug, FILES_DIR)
-  mkdirSync(dir, { recursive: true })
+  const safe = safeFilePath(name)
+  const path = join(root, slug, area, safe)
+  mkdirSync(dirname(path), { recursive: true })
   // Bytes, always. A file cited by a transition is cited by the hash of what
   // is on disk, so nothing may rewrite it on the way in.
-  writeFileSync(join(dir, safe), bytes)
-  return listFiles(root, slug).find((file) => file.name === safe)!
+  writeFileSync(path, bytes)
+  return listFiles(root, slug, area).find((file) => file.name === safe)!
 }
 
-export function readProjectFile(root: string, slug: string, name: string): Buffer | null {
-  const path = join(root, slug, FILES_DIR, safeFileName(name))
+export function readProjectFile(
+  root: string,
+  slug: string,
+  name: string,
+  area = FILES_DIR,
+): Buffer | null {
+  const path = join(root, slug, area, safeFilePath(name))
   return existsSync(path) ? readFileSync(path) : null
+}
+
+export function removeProjectFile(
+  root: string,
+  slug: string,
+  name: string,
+  area = FILES_DIR,
+): boolean {
+  // Only in a workspace, and only because nothing in the record refers to it.
+  // A cited artefact is referenced by hash from a signed transition; removing
+  // the bytes is a redaction, which is `grrp redact` and leaves a mark.
+  const path = join(root, slug, area, safeFilePath(name))
+  if (!existsSync(path)) return false
+  rmSync(path, { force: true })
+  return true
 }
 
 // --- one trajectory, in full -------------------------------------------------
@@ -624,6 +696,8 @@ export interface GraphNode {
   label: string
   attested: boolean
   performed: string
+  /** What this transition committed to, by hash. Part of the record. */
+  cited: { ref: string; label: string }[]
 }
 
 export interface GraphEdge {
@@ -661,6 +735,12 @@ export function projectGraph(
         label: (transition.body ?? '').trim().split('\n')[0] ?? '',
         attested: transition.attested,
         performed: transition.performed,
+        cited: (transition.artefacts as { ref?: string; scheme?: string }[])
+          .filter((artefact) => artefact?.ref)
+          .map((artefact) => ({
+            ref: String(artefact.ref),
+            label: String(artefact.scheme ?? 'reference'),
+          })),
       })
 
       // An artefact is the occasion, and the same occasion cited twice is one
@@ -681,6 +761,7 @@ export function projectGraph(
             label: artefact.ref,
             attested: false,
             performed: transition.performed,
+            cited: [],
           })
         }
         edges.push({ from: key, to: transition.id, kind: 'cites' })

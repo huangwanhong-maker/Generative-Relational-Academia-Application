@@ -24,6 +24,7 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react'
 
 import { api, ApiError, type GraphEdge, type GraphNode, type Project } from '../api'
 import { Modal } from '../Modal'
+import { NodePanel } from './NodePanel'
 
 const COLUMN = 230
 const ROW = 96
@@ -98,12 +99,20 @@ function layout(nodes: GraphNode[], edges: GraphEdge[]): { placed: Placed[]; wid
 }
 
 function wrap(text: string, width = 26, lines = 2): string[] {
-  const words = text.split(/\s+/).filter(Boolean)
+  // Break long unbroken tokens as well as spaces. A state identifier is 64 hex
+  // digits with nowhere to break, and word wrapping alone let it run out of
+  // its box and across the drawing.
+  const words = text
+    .split(/\s+/)
+    .filter(Boolean)
+    .flatMap((word) =>
+      word.length <= width ? [word] : (word.match(new RegExp(`.{1,${width}}`, 'g')) ?? [word]),
+    )
   const out: string[] = []
   let current = ''
   for (const word of words) {
     if ((current + ' ' + word).trim().length > width) {
-      out.push(current)
+      if (current) out.push(current)
       current = word
       if (out.length === lines) break
     } else {
@@ -111,8 +120,8 @@ function wrap(text: string, width = 26, lines = 2): string[] {
     }
   }
   if (out.length < lines && current) out.push(current)
-  if (out.length === lines && out.join(' ').length < text.length) {
-    out[lines - 1] = out[lines - 1]!.slice(0, width - 1) + '…'
+  if (out.join(' ').replace(/\s+/g, '').length < text.replace(/\s+/g, '').length && out.length) {
+    out[out.length - 1] = out[out.length - 1]!.slice(0, width - 1) + '…'
   }
   return out
 }
@@ -171,7 +180,13 @@ function Drawing({
                     : 'material'
                   : READS_AS[node.act ?? ''] ?? node.act}
               </text>
-              {wrap(node.label).map((line, index) => (
+              {wrap(
+                // A held artefact's reference is a 64-digit hash with nowhere
+                // to break. In a box it is noise; the panel shows it in full.
+                node.shape === 'artefact' && node.label.startsWith('state:')
+                  ? `held material · ${node.label.split(':').pop()?.slice(0, 12)}`
+                  : node.label,
+              ).map((line, index) => (
                 <text className="n-text" key={index} x={node.x + 10} y={node.y + 34 + index * 15}>
                   {line}
                 </text>
@@ -284,23 +299,15 @@ export function Trajectories({
         </>
       )}
 
-      <Modal open={Boolean(picked)} title="This node" onClose={() => setPicked(null)}>
-        {picked && (
-          <>
-            <div className="meta">
-              {picked.shape === 'artefact'
-                ? 'material — cited, not recorded'
-                : READS_AS[picked.act ?? ''] ?? picked.act}
-              {picked.trigger && picked.trigger !== 'self' ? ` · occasioned by ${picked.trigger}` : ''}
-              {picked.disposition ? ` · ${picked.disposition}` : ''}
-              {picked.shape === 'transition' && (picked.attested ? ' · attested' : ' · unattested')}
-            </div>
-            <p className="body">{picked.label}</p>
-            {picked.question && <div className="meta">under: {picked.question}</div>}
-            <div className="meta id">{picked.id}</div>
-          </>
-        )}
-      </Modal>
+      {picked && (
+        <NodePanel
+          slug={project.slug}
+          node={picked}
+          cited={picked.cited ?? []}
+          mine={mine}
+          onClose={() => setPicked(null)}
+        />
+      )}
 
       <Modal open={linking} title="Record a connection" onClose={() => setLinking(false)}>
         <form onSubmit={connect}>

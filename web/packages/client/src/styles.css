@@ -265,3 +265,42 @@ select {
 }
 
 .row label { margin: 0; }
+
+/* The node panel: under the graph, and open while you read it. */
+.panel {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--card);
+  padding: 0 1rem 1rem;
+  margin-top: 0.9rem;
+}
+
+.panel-head { display: flex; align-items: center; gap: 1rem; padding-top: 0.7rem; }
+.panel-head > strong { font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.08em; }
+.panel-head > button:last-child { margin-left: auto; padding: 0 0.5rem; font-size: 1.1rem; }
+.panel-tabs { border: none; margin: 0; }
+
+.facts { display: grid; grid-template-columns: 9rem 1fr; gap: 0.25rem 1rem; margin: 0.8rem 0 0; }
+.facts dt { font-size: 0.82rem; color: var(--dim); }
+.facts dd { margin: 0; font-size: 0.9rem; overflow-wrap: anywhere; }
+
+button.link { padding: 0; border: none; text-decoration: underline; }
+
+/* Rendered markdown. Sized to read, not to shout. */
+.md > *:first-child { margin-top: 0; }
+.md > *:last-child { margin-bottom: 0; }
+.md h1, .md h2, .md h3 { font-size: 1.05rem; margin: 1rem 0 0.4rem; text-transform: none;
+                         letter-spacing: 0; color: var(--fg); font-weight: 600; }
+.md p { margin: 0.5rem 0; }
+.md code { font: 0.88em ui-monospace, Menlo, monospace; background: var(--bg);
+           border: 1px solid var(--line); border-radius: 3px; padding: 0 0.25em; }
+.md pre { background: var(--bg); border: 1px solid var(--line); border-radius: 5px;
+          padding: 0.6rem; overflow-x: auto; }
+.md pre code { border: none; background: none; padding: 0; }
+.md blockquote { margin: 0.6rem 0; padding-left: 0.8rem; border-left: 2px solid var(--line);
+                 color: var(--dim); }
+.md ul, .md ol { margin: 0.5rem 0; padding-left: 1.4rem; }
+.md table { border-collapse: collapse; margin: 0.6rem 0; }
+.md th, .md td { border: 1px solid var(--line); padding: 0.3rem 0.55rem; text-align: left; }
+.md img { max-width: 100%; }
+.md.tight { font-size: 0.9rem; color: var(--dim); }

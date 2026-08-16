@@ -13,6 +13,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useSearchParams } from 'react-router-dom'
 
 import { api, ApiError, type Me, type Project } from '../api'
+import { Markdown } from '../Markdown'
 import { Files } from './Files'
 import { GitHistory } from './GitHistory'
 import { Questions } from './Questions'
@@ -103,7 +104,7 @@ function Overview({
 
   return (
     <>
-      {project.description && <p className="body">{project.description.trim()}</p>}
+      {project.description && <Markdown source={project.description} />}
 
       <h2>Questions open here</h2>
       {project.trajectories.length ? (

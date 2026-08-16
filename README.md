@@ -35,15 +35,65 @@ a proposal about what such use would need. The reference tool [`grrp`](grrp/) im
 protocol through the **open tier**, and **all eight acceptance tests pass**. It has not yet been used
 on real work.
 
+The protocol now exists **twice**: in Python ([`grrp/`](grrp/)) and in TypeScript
+([`web/packages/protocol`](web/packages/protocol)), agreeing byte-for-byte on 35 shared vectors. A
+protocol nobody has implemented twice is a protocol whose specification has not been tested — and
+that suite found a real one on its first run, where the two languages stripped different sets of
+trailing whitespace and produced two different identifiers for the same document.
+
+A hosted interface is being built in [`web/`](web/): **a host for projects, which is not their
+authority.** It stores no private key, computes no quantity over anyone, and can be deleted without
+costing anybody a record.
+
 ---
 
 ## Gallery
 
-Everything below is real output from a real record — the philosophy case from the specification,
-built by [examples/walkthrough.sh](grrp/examples/walkthrough.sh). Nothing here is a mock-up, and the
+Everything below is real output from a real record — the philosophy case from the specification.
+Nothing here is a mock-up. The screenshots are taken from a running server by
+[web/tools/gallery.mjs](web/tools/gallery.mjs); the drawings are emitted by the tool itself. The
 command that produced each one is named.
 
-### The trajectory
+### The front page, signed out
+
+Reading what people have shared, and searching it, needs no account. An account is access to one
+host, not permission to look — and a front door that showed nothing until you signed in would have
+already decided it was the authority.
+
+<img src="docs/gallery/01-front-page.png" alt="The GRA front page: a lede, a search box, and one shared project called trust with its description rendered from markdown and its two open questions listed" width="100%">
+
+### A project, as one graph
+
+Every question in a project, in one picture. The **green edge crosses between questions** — a
+position under one question that a connection anchored to a state under another. `parents` has
+always been a list, so this was expressible before anything could draw it.
+
+Left to right is distance from a question, not importance. Nothing is ranked, sized or coloured by
+how much it matters, and no line is marked the principal one.
+
+<img src="docs/gallery/05-trajectories.png" alt="The Trajectories tab: two questions, two positions, an objection and two connections drawn as a directed acyclic graph, with one green edge crossing between the two questions" width="100%">
+
+### One node, in full
+
+Clicking a node opens a panel under the drawing, with three tabs. The distinction it exists to make
+legible is between **cited** material — committed to by hash, part of the record, immutable because
+the transition is — and a **workspace**, which is an ordinary folder that records nothing.
+
+<img src="docs/gallery/06-node-panel.png" alt="The same graph with a node panel open beneath it, showing act, disposition, occasioned-by, registration, time, the question it sits under, and the full identifier" width="100%">
+
+### What happened, under one question
+
+<img src="docs/gallery/07-questions.png" alt="The Questions tab: a framing question, the trajectory drawn, and each transition in order with its act, disposition and whether it is attested" width="100%">
+
+### Search, which filters and does not rank
+
+No relevance ordering, no best match, no score. Matches come back in the same order everything else
+is listed in, and the API says so in its own payload so that a second client cannot present them as
+ranked without contradicting it.
+
+<img src="docs/gallery/08-search.png" alt="The search page showing one match, with the matched word highlighted and a note that results are ordered by record then by trajectory" width="100%">
+
+### The trajectory, drawn by the tool itself
 
 <img src="docs/gallery/trajectory.svg" alt="A trajectory drawn as a directed acyclic graph: a question, a claim, an objection, a transformation, a connection, and two divergent positions" width="100%">
 
@@ -155,17 +205,22 @@ made in the course of the work, with no additional writing.
 That last section is the one no other process can produce, and the reason adoption does not require
 anyone to stop publishing.
 
-### The local page
+### The local page, and the hosted one
 
 ```bash
-grrp ui
+grrp ui                       # single user, loopback, no account, no network
+cd web && npm run dev         # a host: accounts, projects shared between them
 ```
 
-Starts records (a directory, and a git repository inside it if you want one), records any act,
-registers a colleague's proposal, and draws the trajectory above. It is **Level 3 — an application
-over the record, outside conformance**: everything it offers is available from the command line, no
-module of the record imports it, and a test asserts that a record written from the page and one
-written from the terminal are the same record.
+Both are **Level 3 — an application over the record, outside conformance**: everything they offer is
+available from the command line, no module of the record imports them, and a test asserts that a
+record written from a page and one written from the terminal are the same record.
+
+The hosted one stores **public keys only**. It has no column a private key could go in, which is what
+makes an attestation registered there worth anything: a host holding both parties' keys could forge
+one, and C2 would be bookkeeping rather than evidence. Deleting its whole database costs a reindex
+and nothing else — [a test asserts that](web/packages/server/test/authority.test.ts) by deleting it
+and checking every record returns identical from the files.
 
 ---
 
@@ -449,7 +504,13 @@ weakened.
 papers/   the four working drafts (CC BY-NC 4.0)
 notes/    dense working notes on each paper, a glossary, and a gap analysis  ← start here
 plans/    implementation-plan.md — the single build plan, as a checklist
-grrp/     the reference implementation — M0 + M1, personal tier, working
+          design-nodes-time-and-occasions.md — decisions taken before building
+grrp/     the reference implementation, Python — the protocol is defined against it
+web/      the hosted interface, TypeScript
+            packages/protocol   GRRP again, in TypeScript. Browser and server.
+            packages/server     Fastify + SQLite. Owns no protocol decisions.
+            packages/client     React. Disposable by design.
+docs/     the gallery above
 ```
 
 ### The papers
