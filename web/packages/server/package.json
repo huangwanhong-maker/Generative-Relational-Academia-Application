@@ -2,7 +2,7 @@
   "name": "@gra/server",
   "version": "0.1.0",
   "description": "A host for records, which is not their authority.",
-  "license": "MIT",
+  "license": "AGPL-3.0-or-later",
   "type": "module",
   "private": true,
   "scripts": {

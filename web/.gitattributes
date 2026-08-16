@@ -1,8 +1,12 @@
-# Line endings are not cosmetic in this project. A state identifier is the
-# hash of the bytes of its file, and anything that rewrites newlines in transit
-# breaks verification everywhere downstream. The same applies to the vector
-# file that holds the two implementations together.
+# Line endings are not cosmetic in this project. A state identifier is the hash
+# of the bytes of its file, and anything that rewrites newlines in transit
+# breaks verification everywhere downstream.
+#
+# Everything is LF, including JSON. Marking JSON binary was the first attempt
+# and was worse: it left the file however the checkout happened to write it, so
+# a Windows working tree and a Linux one held different bytes for the vector
+# file that exists to prove two implementations agree.
 *           text=auto eol=lf
-*.json      -text
+*.json      text eol=lf
 *.ts        text eol=lf
 *.tsx       text eol=lf

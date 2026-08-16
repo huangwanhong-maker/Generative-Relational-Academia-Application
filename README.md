@@ -611,15 +611,27 @@ Correspondence: huangwanhong@serendip.ngo
 
 ## Licence
 
-**MIT.** See [LICENSE.md](LICENSE.md). © 2026 Wanhong Huang and Serendip Commons Society.
+**AGPL-3.0-or-later** for the software. See [LICENSE.md](LICENSE.md).
+© 2026 Wanhong Huang and Serendip Commons Society.
 
-The choice is not incidental. Two requirements of the design depend on it, and MIT discharges both:
-the specification must be licensed so that **any party may fork it** — otherwise custodianship is a
-position rather than a service (Paper IV Req. 19.4); and a record must be **licensed so that
-continuation elsewhere is permitted**, which is one of the five joint properties of portability, and
-portability is the only bound this design places on the authority of any position within it
-(Paper I Req. 16.2).
+The choice is not incidental. Two requirements of the design constrain it, and the AGPL discharges
+both while adding a third thing this design wants: the specification must be licensed so that **any
+party may fork it** — otherwise custodianship is a position rather than a service
+(Paper IV Req. 19.4); and a record must be **licensed so that continuation elsewhere is permitted**,
+which is one of the five joint properties of portability, and portability is the only bound this
+design places on the authority of any position within it (Paper I Req. 16.2).
 
-> The four PDFs in [papers/](papers/) each carry their own **CC BY-NC 4.0** notice inside the document
-> and remain under it until those notices are revised. Where this repository's licence and a document's
-> own notice differ, the document's notice governs that document.
+What the AGPL adds is the network clause, and it bears directly on the central risk here. A host
+that ran a modified GRA as a service would have to offer its modifications. **A closed fork cannot
+become the place everyone's records live** — which is the failure this whole design is arranged
+against, and the one a permissive licence would leave open.
+
+Three things it deliberately does not reach:
+
+- **The protocol.** An independent implementation of GRRP does not inherit this licence merely by
+  implementing the specification. If it did, C10 would be a slogan.
+- **Research records and contributed content.** Manuscripts, datasets, media and records created or
+  managed through GRA remain under whatever their authors and rights holders specify.
+- **The four papers.** The PDFs in [papers/](papers/) each carry their own **CC BY-NC 4.0** notice
+  inside the document and remain under it until those notices are revised. Where this repository's
+  licence and a document's own notice differ, the document's notice governs that document.

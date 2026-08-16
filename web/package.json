@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "description": "Generative Relational Academia: a host for records, which is not their authority.",
-  "license": "MIT",
+  "license": "AGPL-3.0-or-later",
   "workspaces": [
     "packages/protocol",
     "packages/server",
