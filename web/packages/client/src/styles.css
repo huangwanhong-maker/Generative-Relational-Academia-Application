@@ -231,3 +231,37 @@ dialog::backdrop { background: rgb(0 0 0 / 0.4); }
 }
 
 .dialog-head button { margin-left: auto; padding: 0 0.4rem; font-size: 1.1rem; line-height: 1; }
+
+/* The project as one graph. Nothing here is sized or coloured by importance:
+   depth is distance from a question, and that is all it says. */
+.n { cursor: pointer; }
+.n-box { fill: var(--card); stroke: var(--line); stroke-width: 1.5; }
+.n:hover .n-box { stroke: var(--fg); }
+.n-box.open { stroke: var(--open); stroke-width: 2; }
+.n-box.artefact { fill: var(--bg); stroke-dasharray: 4 3; }
+.n-text { fill: var(--fg); font: 12px/1.3 ui-serif, Georgia, serif; }
+.n-kind {
+  fill: var(--dim);
+  font: 10px ui-monospace, Menlo, monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.e-follows { stroke: var(--line); fill: none; stroke-width: 1.5; }
+/* A parent under another question. Drawn apart because it is the structure
+   this view exists to show, not because it matters more. */
+.e-crosses { stroke: var(--live); fill: none; stroke-width: 1.5; }
+.e-cites { stroke: var(--dim); fill: none; stroke-width: 1.2; stroke-dasharray: 3 3; }
+
+select {
+  font: inherit;
+  padding: 0.4rem;
+  border-radius: 5px;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  color: var(--fg);
+  display: block;
+  margin-top: 0.25rem;
+}
+
+.row label { margin: 0; }

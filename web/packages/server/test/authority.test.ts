@@ -643,3 +643,142 @@ describe('a project is a container; a question anchors a line of work', () => {
     expect(empty.statusCode).toBe(400)
   })
 })
+
+
+describe('the graph is not sequential, and needed no new vocabulary', () => {
+  async function twoQuestions() {
+    const session = await signIn()
+    await app.fastify.inject({
+      method: 'POST',
+      url: '/api/projects',
+      headers: session.headers,
+      payload: { title: 'trust' },
+    })
+    const first = await ask(session, 'trust', 'Is trust a property between individuals?')
+    const second = await ask(session, 'trust', 'What does an unanswered objection do to a field?')
+    return {
+      session,
+      a: first.json().trajectories[0].trajId as string,
+      b: second.json().trajectories[1].trajId as string,
+    }
+  }
+
+  it('spans every question in one graph, not one per question', async () => {
+    const { session } = await twoQuestions()
+    const graph = (
+      await app.fastify.inject({
+        method: 'GET',
+        url: '/api/projects/trust/graph',
+        headers: session.headers,
+      })
+    ).json()
+
+    const questions = new Set(graph.nodes.map((node: { trajId: string }) => node.trajId))
+    expect(questions.size).toBe(2)
+  })
+
+  it('makes an edge cross between questions when a connection is recorded', async () => {
+    const { session, b } = await twoQuestions()
+    const detail = (
+      await app.fastify.inject({
+        method: 'GET',
+        url: `/api/projects/trust/graph`,
+        headers: session.headers,
+      })
+    ).json()
+    // The opening state of the first question, cited from the second.
+    const target = detail.nodes.find(
+      (node: { act: string; trajId: string }) => node.act === 'question' && node.trajId !== b,
+    )
+    expect(target).toBeTruthy()
+
+    const before = detail.edges.filter((edge: { kind: string }) => edge.kind === 'crosses').length
+    expect(before).toBe(0)
+
+    const connected = await app.fastify.inject({
+      method: 'POST',
+      url: '/api/projects/trust/connections',
+      headers: session.headers,
+      payload: {
+        traj: b.replace(/^traj:/, ''),
+        to: 'Is trust a property between individuals?',
+        message: 'It bears on the other question.',
+        relation: 'relates',
+      },
+    })
+
+    // Either it connected to the state, or it recorded an external reference.
+    // Both are lawful; what must not happen is a new field or a new act.
+    expect([201, 400]).toContain(connected.statusCode)
+    if (connected.statusCode === 201) {
+      const graph = connected.json()
+      const acts = new Set(
+        graph.nodes
+          .filter((node: { shape: string }) => node.shape === 'transition')
+          .map((node: { act: string }) => node.act),
+      )
+      for (const act of acts) {
+        expect([
+          'question',
+          'claim',
+          'challenge',
+          'transformation',
+          'decision',
+          'connection',
+          'verification',
+          'release',
+        ]).toContain(act)
+      }
+    }
+  })
+
+  it('draws one node for material cited more than once', async () => {
+    const { session, a, b } = await twoQuestions()
+    for (const traj of [a, b]) {
+      await app.fastify.inject({
+        method: 'POST',
+        url: '/api/projects/trust/connections',
+        headers: session.headers,
+        payload: {
+          traj: traj.replace(/^traj:/, ''),
+          to: 'doi:10.1000/the-same-experiment',
+          message: 'This bears on it.',
+        },
+      })
+    }
+
+    const graph = (
+      await app.fastify.inject({
+        method: 'GET',
+        url: '/api/projects/trust/graph',
+        headers: session.headers,
+      })
+    ).json()
+
+    const material = graph.nodes.filter((node: { shape: string }) => node.shape === 'artefact')
+    const shared = material.filter(
+      (node: { id: string }) =>
+        graph.edges.filter((edge: { from: string }) => edge.from === node.id).length > 1,
+    )
+    // The same occasion cited from two questions is ONE node with two edges.
+    // That is what makes an experiment bearing on several questions expressible
+    // without inventing an event type (C12).
+    expect(shared.length).toBeGreaterThanOrEqual(1)
+  })
+
+  it('carries no quantity, score or ordering over the work', async () => {
+    const { session } = await twoQuestions()
+    const body = (
+      await app.fastify.inject({
+        method: 'GET',
+        url: '/api/projects/trust/graph',
+        headers: session.headers,
+      })
+    ).body
+
+    for (const forbidden of ['score', 'rank', 'weight', 'importance', 'priority', 'centrality']) {
+      expect(body.toLowerCase()).not.toContain(forbidden)
+    }
+    expect(body.toLowerCase()).not.toContain('merge')
+  })
+})

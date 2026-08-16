@@ -72,6 +72,26 @@ export interface TrajectoryDetail {
   graph: string | null
 }
 
+export interface GraphNode {
+  id: string
+  shape: 'transition' | 'artefact'
+  act: string | null
+  trigger: string | null
+  disposition: string | null
+  trajId: string | null
+  question: string | null
+  label: string
+  attested: boolean
+  performed: string
+}
+
+export interface GraphEdge {
+  from: string
+  to: string
+  /** 'crosses' is a parent in another question — the reason this view exists. */
+  kind: 'follows' | 'crosses' | 'cites'
+}
+
 export interface ProjectFile {
   name: string
   size: number
@@ -141,6 +161,29 @@ export const api = {
   trajectory: (slug: string, trajId: string) =>
     request<TrajectoryDetail>(
       `/api/projects/${encodeURIComponent(slug)}/trajectories/${encodeURIComponent(trajId)}`,
+    ),
+
+  /** The whole project as one graph, across every question. */
+  graph: (slug: string) =>
+    request<{ nodes: GraphNode[]; edges: GraphEdge[] }>(
+      `/api/projects/${encodeURIComponent(slug)}/graph`,
+    ),
+
+  /** Relate one state to another, or to work outside the project. An act. */
+  connect: (
+    slug: string,
+    body: {
+      to: string
+      message: string
+      traj?: string
+      from?: string
+      relation?: string
+      trigger?: string
+    },
+  ) =>
+    request<{ nodes: GraphNode[]; edges: GraphEdge[] }>(
+      `/api/projects/${encodeURIComponent(slug)}/connections`,
+      { method: 'POST', body: JSON.stringify(body) },
     ),
 
   files: (slug: string) =>

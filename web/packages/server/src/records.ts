@@ -588,3 +588,121 @@ export async function gitHistory(
       }),
   }
 }
+
+
+// --- the whole project as one graph ------------------------------------------
+
+/**
+ * Every transition in a project, across every question, in one graph.
+ *
+ * Three things make this graph **not sequential**, and none of them is new:
+ *
+ *   `parents` is a list, so a transition may follow several.
+ *
+ *   `grrp connect` to a state in another trajectory adds *that* trajectory's
+ *   transition as a parent. The link is an ordinary edge and travels with the
+ *   record; no field was invented for it.
+ *
+ *   Artefacts are cited by the hash of their bytes, so an experiment bearing
+ *   on three questions is cited by three transitions and appears here as one
+ *   node with three edges. That is the occasion, shared -- and it needed no
+ *   parallel vocabulary of event types, which acts being closed would have
+ *   forbidden anyway (C12).
+ *
+ * What kind of occasion it was is already named by `trigger`: experiment,
+ * discussion, observation, simulation, literature, failure.
+ */
+export interface GraphNode {
+  id: string
+  /** 'transition' or 'artefact'. Not a type vocabulary -- a drawing distinction. */
+  shape: 'transition' | 'artefact'
+  act: string | null
+  trigger: string | null
+  disposition: string | null
+  trajId: string | null
+  question: string | null
+  label: string
+  attested: boolean
+  performed: string
+}
+
+export interface GraphEdge {
+  from: string
+  to: string
+  /** 'follows' | 'cites'. 'crosses' when the parent is in another trajectory. */
+  kind: 'follows' | 'crosses' | 'cites'
+}
+
+export function projectGraph(
+  root: string,
+  slug: string,
+): { nodes: GraphNode[]; edges: GraphEdge[] } {
+  const project = readProject(root, slug)
+  if (!project) return { nodes: [], edges: [] }
+
+  const nodes = new Map<string, GraphNode>()
+  const edges: GraphEdge[] = []
+  const trajectoryOf = new Map<string, string>()
+
+  for (const trajectory of project.trajectories) {
+    const detail = readTrajectoryDetail(root, slug, trajectory.trajId)
+    if (!detail) continue
+
+    for (const transition of detail.transitions) {
+      trajectoryOf.set(transition.id, trajectory.trajId)
+      nodes.set(transition.id, {
+        id: transition.id,
+        shape: 'transition',
+        act: transition.act,
+        trigger: transition.trigger,
+        disposition: transition.disposition,
+        trajId: trajectory.trajId,
+        question: trajectory.question,
+        label: (transition.body ?? '').trim().split('\n')[0] ?? '',
+        attested: transition.attested,
+        performed: transition.performed,
+      })
+
+      // An artefact is the occasion, and the same occasion cited twice is one
+      // node. The key is the reference itself, which for held material is the
+      // hash of its bytes.
+      for (const artefact of transition.artefacts as { ref?: string; scheme?: string }[]) {
+        if (!artefact?.ref) continue
+        const key = `artefact:${artefact.ref}`
+        if (!nodes.has(key)) {
+          nodes.set(key, {
+            id: key,
+            shape: 'artefact',
+            act: null,
+            trigger: transition.trigger,
+            disposition: null,
+            trajId: null,
+            question: null,
+            label: artefact.ref,
+            attested: false,
+            performed: transition.performed,
+          })
+        }
+        edges.push({ from: key, to: transition.id, kind: 'cites' })
+      }
+    }
+  }
+
+  for (const node of nodes.values()) {
+    if (node.shape !== 'transition') continue
+    const detail = node.trajId ? readTrajectoryDetail(root, slug, node.trajId) : null
+    const transition = detail?.transitions.find((candidate) => candidate.id === node.id)
+    for (const parent of transition?.parents ?? []) {
+      if (!nodes.has(parent)) continue
+      edges.push({
+        from: parent,
+        to: node.id,
+        // A parent in another trajectory is the cross-link. Drawn differently
+        // because it is the thing this view exists to show.
+        kind: trajectoryOf.get(parent) === node.trajId ? 'follows' : 'crosses',
+      })
+    }
+  }
+
+  return { nodes: [...nodes.values()], edges }
+}

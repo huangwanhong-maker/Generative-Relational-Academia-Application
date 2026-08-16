@@ -29,6 +29,8 @@ import {
   createRecord,
   gitHistory,
   openQuestion,
+  projectGraph,
+  runGrrp,
   listFiles,
   readProjectFile,
   readTrajectoryDetail,
@@ -278,6 +280,75 @@ export async function buildApp(options: Options): Promise<App> {
       // is marked principal, because nothing in the record designates one.
       graph: await trajectoryGraph(options.recordsRoot, slug, trajId),
     }
+  })
+
+  /**
+   * The whole project as one graph, across every question.
+   *
+   * Not per-trajectory, because the structure worth seeing is the one that
+   * crosses them: an experiment that bears on three questions, a position that
+   * answers an objection raised under another. Those links are ordinary parent
+   * edges and artefact citations -- the record has always held them, and only
+   * the interface was drawing one line of work at a time.
+   */
+  fastify.get('/api/projects/:slug/graph', async (request, reply) => {
+    const { slug } = request.params as { slug: string }
+    if (!(await visible(slug, request))) {
+      return reply.code(404).send({ error: 'no project by that name here' })
+    }
+    return projectGraph(options.recordsRoot, slug)
+  })
+
+  /**
+   * Relate one state to another, or to work outside the project.
+   *
+   * This is `grrp connect`, which is an **act** -- it is recorded, it is
+   * attributed, and it says why the connection matters. That is the difference
+   * between it and adding a file: a connection is a claim about how two things
+   * bear on each other, and a claim has an author.
+   */
+  fastify.post('/api/projects/:slug/connections', { onRequest: requireSession }, async (request, reply) => {
+    const { slug } = request.params as { slug: string }
+    const project = await getProject(db, slug)
+    if (!project) return reply.code(404).send({ error: 'no project by that name here' })
+    if (project.openedBy !== request.session!.party) {
+      return reply.code(403).send({ error: 'only the party who created a project may record in it' })
+    }
+    const body = request.body as {
+      traj?: string
+      from?: string
+      to?: string
+      relation?: string
+      trigger?: string
+      message?: string
+    }
+    if (!body.to || !body.message) {
+      return reply.code(400).send({
+        error: 'a connection needs what it points at and why it matters',
+      })
+    }
+    // Which question the connection is made *from*. A connection is anchored
+    // to an identified state like any other act (C4), so with more than one
+    // question open there is no default and the caller has to say.
+    if (!body.traj && !body.from && project.trajectories.length > 1) {
+      return reply.code(400).send({
+        error:
+          'say which question this connection is made from. With more than one open there is ' +
+          'no default, because an act attaches to an identified state and not to a project.',
+      })
+    }
+    const args = ['connect', '--to', body.to, '-m', body.message]
+    if (body.from) args.push(body.from)
+    if (body.traj) args.push('--traj', body.traj)
+    if (body.relation) args.push('--relation', body.relation)
+    if (body.trigger) args.push('--trigger', body.trigger)
+
+    const connected = await runGrrp(args, join(options.recordsRoot, slug))
+    if (!connected.ok) {
+      return reply.code(400).send({ error: connected.stderr.trim() || connected.stdout.trim() })
+    }
+    await reindex(db, options.recordsRoot)
+    return reply.code(201).send(projectGraph(options.recordsRoot, slug))
   })
 
   // --- the artefact plane ---------------------------------------------------

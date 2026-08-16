@@ -16,9 +16,11 @@ import { api, ApiError, type Me, type Project } from '../api'
 import { Files } from './Files'
 import { GitHistory } from './GitHistory'
 import { Questions } from './Questions'
+import { Trajectories } from './Trajectories'
 
 const TABS = [
   ['overview', 'Overview'],
+  ['trajectories', 'Trajectories'],
   ['questions', 'Questions'],
   ['files', 'Files'],
 ] as const
@@ -70,6 +72,13 @@ export function ProjectPage({ me }: { me: Me }) {
 
       {tab === 'overview' && (
         <Overview project={project} mine={mine} dev={Boolean(me.dev)} onWiden={widen} />
+      )}
+      {tab === 'trajectories' && (
+        <Trajectories
+          project={project}
+          mine={mine}
+          onChanged={() => void api.project(slug).then(setProject)}
+        />
       )}
       {tab === 'questions' && (
         <Questions project={project} mine={mine} onOpened={setProject} />
