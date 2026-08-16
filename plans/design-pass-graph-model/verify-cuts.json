@@ -1,0 +1,93 @@
+{
+  "cuts": [
+    {
+      "item": "The kind-manifest YAML system (Draft B \u00a73: file format, match blocks, specificity resolution, loader, tie-break rules)",
+      "why": "It is a plugin architecture for a community ecosystem of zero communities; v1's dozen lenses can be ordinary app code, and the elaborate loader denylist exists only to police an extension surface that does not have to be opened yet."
+    },
+    {
+      "item": "Charter kind packages (~/.gra/kinds cache, fetch by charter id+version, install-from-charter)",
+      "why": "Distribution-and-caching infrastructure for third-party lenses nobody has written, defending a record that Draft B itself admits is already complete without them."
+    },
+    {
+      "item": "The `projection` mini-language (\u00a71.2)",
+      "why": "A query DSL whose specification is mostly the list of things it must never express; a hardcoded read-only panel is safe without a language."
+    },
+    {
+      "item": "Kind versioning and prospective-amendment rules (manifest `version`, Req 19.2 mapping)",
+      "why": "Version discipline for manifest files that should not ship in v1 at all."
+    },
+    {
+      "item": "`degrades-to` declarations and the manifest-less-host fallback protocol",
+      "why": "Fallback semantics matter only when lenses travel separately from the app; with builtin kinds only, every host renders identically and the record's own portability (C10) already covers the future."
+    },
+    {
+      "item": "The closed preconditions vocabulary (has-open-question, registrar-differs, charter-declares, disclosure-permits, ...)",
+      "why": "A second, declarative implementation of lawfulness that will drift from grrp, when the drafts' own invariant \u2014 grrp refuses, stderr surfaced verbatim \u2014 already provides the single source of truth."
+    },
+    {
+      "item": "Bridge as a third action class",
+      "why": "Draft C's S4 is correct: citing a hash is an artefact-picker parameter inside a real recording act, not a sibling class, and a free-standing 'cite' button produces transitions that exist only so a record exists (C1)."
+    },
+    {
+      "item": "Administrative as a proposed fourth action class (Draft C S5's fix)",
+      "why": "Instead of growing the taxonomy, collapse it: exactly two classes \u2014 actions that write the record through grrp (the 8 acts and the existing operations alike) and applicative actions test-proven to leave transitions/ byte-identical."
+    },
+    {
+      "item": "The twelve named occasion-kinds (lab meeting, seminar, journal club, supervision, whiteboard, conference, field trip, failed attempt, AI session, onboarding, ...)",
+      "why": "They are one mechanism \u2014 trigger plus shared cited artefact \u2014 wearing different labels; specify the pattern once and let the trigger value be the label."
+    },
+    {
+      "item": "Occasion detection by hash+trigger+time-window clustering",
+      "why": "Inference machinery for a grouping the graph already shows: the shared artefact node's citing edges ARE the occasion, no algorithm required."
+    },
+    {
+      "item": "Per-relation edge kinds (gra.edge.dispute and its eighteen siblings)",
+      "why": "Nineteen kinds that differ only in a label and a match value; one connection presentation that renders the `relation` field covers all sixteen CiTO bindings and the three locals."
+    },
+    {
+      "item": "The material-kind catalogue beyond two (dataset, code release, manuscript draft, ethics letter, specimen sheet, instrument config, ...)",
+      "why": "All of them are workflows over the same two node shapes \u2014 held artefact by state hash, external work by doi/arxiv/isbn/url \u2014 so the catalogue adds taxonomy, not capability."
+    },
+    {
+      "item": "Derived presentation edges (same-source, same-occasion, chronological adjacency)",
+      "why": "Computed overlays that carry fresh C6 guard obligations in order to duplicate what the shared node's ordinary edges already display."
+    },
+    {
+      "item": "Five separate record-facet component types (identity, details, bearing, material, provenance)",
+      "why": "Five tabs over one small signed YAML; a single read-only record panel that renders the whole payload is simpler and harder to get wrong."
+    },
+    {
+      "item": "`endpoints` as an edge-family component",
+      "why": "It is `bearing` (parents/children) renamed."
+    },
+    {
+      "item": "`note` and `form` component types",
+      "why": "A named markdown file and a schema'd YAML file are both just files in the workspace folder the workspace component already provides."
+    },
+    {
+      "item": "`commitments` component",
+      "why": "A read-only re-display of release_at and embargo dates that the disclosure panel already shows."
+    },
+    {
+      "item": "The composition algebra (universal set \u222a family defaults \u222a kind list, id-conflict resolution, builtins-win-actions/charters-win-components tie-breaks)",
+      "why": "With four components and a handful of hardcoded kinds, each kind's panel list is a short literal list \u2014 and inheritance rules are exactly how a calendar ends up on a dispute edge (Draft C's S9)."
+    },
+    {
+      "item": "`join-meeting` as a specified action",
+      "why": "It is a hyperlink stored in a calendar entry; elevating it to named action machinery manufactures the presence-logging trap that S3 then has to defuse."
+    },
+    {
+      "item": "Occasion badges and any per-node count decorations on the canvas",
+      "why": "Draft C's S8 is right that badges across a canvas are comparison by juxtaposition, so counts live only inside the one selected item's panel and no badge component exists at all."
+    },
+    {
+      "item": "Draft A's workspace-content enumerations (PDF annotation layer, onboarding tour bookmarks, reviewer-response drafting table, per-node task checklist)",
+      "why": "The workspace is an ordinary folder; enumerating its possible contents in a specification is documentation cosplaying as design surface."
+    },
+    {
+      "item": "The 47-ruling gauntlet as normative spec text",
+      "why": "Keep it as review record, but a spec that implementers must diff against 47 numbered rulings will be skimmed, not obeyed \u2014 the spec itself carries a one-page constitutive refusal table."
+    }
+  ],
+  "kernel": "V1 commits to seven things and nothing else. (1) grrp is the sole record-writer: every record-writing action \u2014 the 8 acts plus the existing administrative operations \u2014 is a thin form over exactly one grrp invocation, with artefact citation as a picker parameter of the act, and grrp's refusal surfaced verbatim; no declarative precondition layer, no UI-constructed skeletons. (2) Exactly two action classes: grrp-writing and applicative, with the existing upload test generalised so every applicative action provably leaves transitions/ byte-identical. (3) Three node presentations, hardcoded in app code: transition (labeled by its act, protocol term always one gesture away), held artefact (state hash), and external work (doi/arxiv/isbn/url, rendering fully offline). (4) Two edge presentations: structural parent edges as bare facts \u2014 no identity, no components, and the written-down rule that a bad link is contested by challenging the child transition whose signed payload carries it \u2014 and connection transitions, drawn as edges, openable as nodes. (5) Exactly four components, one per layer: a read-only record panel (the whole signed payload), a disclosure panel (sidecar, widen-only, grounds and release_at included), a workspace folder on every node and every connection (mutable, never bundled \u2014 the brief's one universal), and a calendar entry (local plane, never exported, schema containing no people fields, granted only to meeting occasions). (6) Occasions are derived and never creatable: a shared cited artefact is the occasion node, its citing edges are the gathering, and no view ever unions their performers into a roster. (7) A one-page constitutive refusal table in the spec: no person or project nodes, no attendance anywhere in any layer, no scalars/weights/rankings/progress/streaks, no merge and the word never appears, no edit/delete/unpublish, no mark-resolved, no per-performer views, counts only inside the single selected item's panel. Everything cut above \u2014 manifests, charter kind packages, projections, occasion and relation catalogues \u2014 is deferred until a second real community exists, and deferring it is safe precisely because kinds are lenses that never touch the record: any future lens can reread everything v1 writes."
+}

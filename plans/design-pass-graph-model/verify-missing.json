@@ -1,0 +1,144 @@
+{
+  "missing": [
+    {
+      "item": "Attest/register-an-existing-transition action has no class",
+      "why": "Draft A lists 'register/attest' under recording actions, but attesting an already-recorded transition (Draft A scenario 8: 'record at camp, register on return') produces no new transition \u2014 it completes the registration field of an existing record. It is not recording (no new transition), not applicative (record-plane consequence), not bridge. No draft declares the action, its inputs, its C2 preconditions, or the 'request attestation from a colleague' flow \u2014 even though plans/design-nodes-time-and-occasions.md ranks attestation as priority #2 ('the one that makes the system mean anything'). Draft C's S5 catches operations but misses attestation.",
+      "layer": "protocol"
+    },
+    {
+      "item": "Administrative action class raised (C S5) but never specified",
+      "why": "Draft C S5 demands a fourth class for the OPERATIONS in vocab.py (disclosure_changed, redaction, key_rotation, fork_declared, attribution_contested, binding_recorded, deposit_recorded), but no draft then specifies it: no input forms (which REDACTION_GROUNDS value, which of the 4 restriction grounds, release_at), no preconditions, no denylist interaction, no statement of which subjects carry which admin actions. Draft B's disclosure component has 'widen-only controls' with zero action declarations behind them.",
+      "layer": "protocol"
+    },
+    {
+      "item": "Operation-kinds: how the 7 administrative operations render in the graph",
+      "why": "Nobody proposes a presentation kind or family for operations. Where does a disclosure_changed or refused-extension appear? Is a redaction event a node? How does attribution_contested show on the contested transition's provenance? Where is the DOI from binding_recorded/deposit_recorded displayed? Draft B's families are act|occasion|material|edge \u2014 operations fit none, and family fallback (\u00a71.3) only covers transition/artefact/connection.",
+      "layer": "protocol"
+    },
+    {
+      "item": "State nodes: prior_state/posterior_state as subjects",
+      "why": "The brief says content lives in state files and grrp connect targets 'a state in ANOTHER trajectory'; C4 references 'a specific identified prior state'. Draft B's subject set is 'transition | artefact | reified edge' \u2014 states are absent. Are states presentable subjects with components? Do they get workspaces (nodeArea works on any id)? No draft rules either way, and the connect target-picker needs an answer.",
+      "layer": "protocol"
+    },
+    {
+      "item": "Content/rationale component missing from the component registry",
+      "why": "Draft A \u00a73.1 names a 'Rationale' component (the state file's content \u2014 'the payload of connection edges'). Draft B's closed registry (\u00a71.1) has no component type that displays state content at all: details shows type fields, material shows artefact digests, projection cannot select state-file bytes. The single most important surface of a node \u2014 what was actually said \u2014 is unexpressible in the machinery draft.",
+      "layer": "applicative"
+    },
+    {
+      "item": "`endpoints` component used but never registered",
+      "why": "Draft B's gra.edge.dispute manifest declares 'use: endpoints' and \u00a75.2 makes it an edge-family default, but endpoints does not appear in the \u00a71.1 closed application registry, which claims to be exhaustive ('communities never define new classes'). Exactly the 'component implied but never defined' failure; same for Draft A's 'Occasion badge' and 'Redaction notice' components, neither of which exists in B's registry.",
+      "layer": "applicative"
+    },
+    {
+      "item": "No component can lawfully show the C6 carve-out counts",
+      "why": "C6 and Draft C item 5 permit counts within one open trajectory ('4 challenges, 2 unresolved'), but Draft B's projection language 'has no aggregation forms at all' and no other registry type computes anything. The permitted count has no home, and Draft C S8's scoping rule (counts only in the single-trajectory detail panel, never as canvas badges) is a finding, not a spec \u2014 no draft encodes where the count component may render.",
+      "layer": "applicative"
+    },
+    {
+      "item": "Redaction aftermath is unanswered end to end",
+      "why": "What renders when bytes are gone: does a kind whose match tested artefact-scheme still match a redacted transition (skeleton survives, C8)? What does the material component show for a hash with no bytes? Req 13.6 (paper-IV) requires accepting, acting on, and forwarding redaction notices \u2014 an inbound action with no home in any class \u2014 and warns that derived objects and caches may embed removed content, yet no draft specifies purging workspaces, search caches, or auto-summary caches on redaction. Workspace files live in git history (B's table), where redaction requires history rewriting \u2014 the tension paper-IV line 931 names is never resolved for the applicative layer.",
+      "layer": "protocol"
+    },
+    {
+      "item": "Bundle import is entirely unspecified",
+      "why": "Draft C item 6 covers export; nobody specifies import: signature-verification failure handling (tampered bundle), duplicate transition ids, same-id-different-bytes conflict, unknown act (must reject \u2014 closed vocabulary) vs unknown local: trigger (retain and flag \u2014 the only case B \u00a74.2 covers), partial bundles with dangling parents, and how bearing/canvas render a parent transition that is not in the local store (also arises under restricted disclosure). Import writes to the record store while performing no act \u2014 another occupant of the missing administrative class.",
+      "layer": "bridge"
+    },
+    {
+      "item": "Kind-resolution ties between two charter kinds, and cross-charter records",
+      "why": "B \u00a71.3 breaks builtin-vs-charter ties but not charter-vs-charter: an imported record carries charter X while the host project runs charter Y \u2014 whose kind package lenses it? Two installed community kinds at equal specificity have no tie-break. 'Most match fields' is a crude metric (is relation:cito:disputes more specific than act:connection? both are one field). And with prospective amendment (Req 18.4), records made under charter 3.1 living in a project now at 3.2 \u2014 which manifest version renders them, and must superseded kind packages be retained forever? All unanswered.",
+      "layer": "applicative"
+    },
+    {
+      "item": "Occasion nodes cannot exist before the meeting they schedule",
+      "why": "B's meeting kind hangs schedule and agenda.md on nodes/<hash>/ where <hash> is the minutes artefact \u2014 which does not exist until after the meeting. Where the calendar entry and agenda live pre-meeting, and how they migrate onto the artefact node once minutes are hashed, is unspecified. Also unspecified: the occasion clustering 'time window' (Draft A \u00a71.2 \u2014 what window, defined by whom?), and the collision where two distinct meetings cite one identical artefact (a reused agenda template hash merges them into one occasion).",
+      "layer": "applicative"
+    },
+    {
+      "item": "Subjectless/global actions have no host in the kind machinery",
+      "why": "Actions attach to kinds resolved from an existing subject (B \u00a71.3), but ask/open-a-trajectory (Draft A 4.1), export bundle, import bundle, generate key, install/fetch a charter package, and create-project exist before any subject does \u2014 and a project-level kind is denylisted (B \u00a74.3). The model needs a declared home for global actions or the first act of every trajectory is unreachable.",
+      "layer": "applicative"
+    },
+    {
+      "item": "Contributions and absorption have no entry mechanism",
+      "why": "Every recording-action argv template in Draft B lacks --contribution and absorption inputs, yet Draft A leans on both (supervisor's credit:Supervision on a student's decision; entering_party transitions 'with absorption filled'). Unanswered: the input types for a CRediT-role-per-party picker and a specific-prior-states absorption picker, and the consent question \u2014 may a performer unilaterally attribute a CRediT role to another party, or must that party countersign? attribution_contested is the dispute path but the entry path is undefined.",
+      "layer": "protocol"
+    },
+    {
+      "item": "Recording templates omit the C4-mandated prior state",
+      "why": "C4 requires a specific identified prior state, but B's cite-minutes action has no parent input at all, and the has-open-question precondition is never defined (what makes a question 'open' when dispositions never close anything?). The input-type vocabulary (markdown, enum, workspace-file) lacks the two pickers most actions need: a state/transition reference picker (for parents and grrp connect targets) and an external-identifier input (doi/arxiv/url for cite-external).",
+      "layer": "bridge"
+    },
+    {
+      "item": "Key lifecycle: generation, rotation rendering, newcomer key registration",
+      "why": "key_rotation is in OPERATIONS but no draft says how post-rotation continuity displays (do old-key signatures render as the same party?), where key generation lives, or what action realises Draft A scenario 14's 'their key registered'. Draft C item 31 concedes a key-fingerprint verification panel exists but no component realises it, and nothing specifies rendering a signature that FAILS verification \u2014 the tamper-detection surface is absent from all three drafts.",
+      "layer": "protocol"
+    },
+    {
+      "item": "Disclosure-restricted rendering per ground",
+      "why": "Each of the four GROUNDS in vocab.py defines a distinct residue (rivalry: full trajectory visible; hazard: existence+questions+decisions visible; vulnerability: everything at the scheduled time; appropriability: existence+questions+decisions+negative results). No draft specifies what an out-of-audience party actually sees per ground \u2014 which components render, whether the node appears on the canvas, how bearing shows restricted children. B's disclosure-permits precondition gates actions only, not components.",
+      "layer": "protocol"
+    },
+    {
+      "item": "Workspace 'privacy' contradicts B's own storage table",
+      "why": "B's class table puts workspace-facet in git ('in git? yes'), so any party who clones or pulls the repo gets every workspace \u2014 yet Draft C item 16 reformulates private comments as workspace notes and item 12 calls task notes 'self-maintained'. C10 portability via git clone carries all workspaces even though bundles never do. The boundary between 'bundle' and 'git remote', and whether workspace content is per-party-private or project-shared, is never drawn \u2014 and it changes what may be written there.",
+      "layer": "applicative"
+    },
+    {
+      "item": "Fork lifecycle unspecified",
+      "why": "fork_declared exists in OPERATIONS and Draft A scenario 13 invokes it, but nothing specifies the declaring action's inputs, how a forked project displays its origin, how the upstream displays the declared fork (or whether it even learns of it), or how two forks that later cite each other's states render. C10 makes this a first-class path, not an edge case.",
+      "layer": "bridge"
+    },
+    {
+      "item": "Charter as a viewable subject",
+      "why": "Records carry charter id+version, B resolves local: values against it, and the manifest loader fetches packages by it \u2014 but no kind lets a user read the charter, see which local: targets/triggers/relations it defines (the charter-declares precondition needs this), or browse its prospective amendment history (Req 18.4). Also unspecified: charter-package authenticity \u2014 fetched by id+version, but verified how, signed by whom? The loader denylist checks manifest content, not package provenance.",
+      "layer": "applicative"
+    },
+    {
+      "item": "Conformance tier: detection, display, and export marking",
+      "why": "B's registrar-differs precondition applies 'at group tier+' but nothing says where the app learns the project's tier. The self-declaration (Req 20.7: protocol version, tier, vocabularies, succession) has no component, and Req 20.3 \u2014 every personal-tier export must mark everything unattested \u2014 is an export-time obligation with no home in any draft's action or bundle spec.",
+      "layer": "bridge"
+    },
+    {
+      "item": "`commitments` component misclassified",
+      "why": "B's registry classes commitments as record-facet, but its data (release_at, embargo expiry) lives in the disclosure sidecar \u2014 sidecar-facet territory by B's own class table. The class determines 'does it travel?', so the mismatch is not cosmetic; one of the table's two rows is wrong and the spec doesn't say which.",
+      "layer": "applicative"
+    },
+    {
+      "item": "Local-plane instances Draft C sanctions but B never registers",
+      "why": "Draft C's reformulations require component/action instances that don't exist in the closed registry: private pin (item 10), watch-list bookmark (22), client-side local notification (9), single-project chronology feed (8), rebuildable search cache (11), auto-summary cache marked-as-unsigned (21), demo-repository tutorial (29). A closed registry that omits them means every sanctioned reformulation is currently unimplementable without violating B's own 'communities never define new types' rule.",
+      "layer": "applicative"
+    },
+    {
+      "item": "Family-fallback 'generic actions' never enumerated",
+      "why": "B \u00a74.2 says a manifest-less host 'offers only the universal components and generic actions', and \u00a75.4 says exactly one kind's action list is offered \u2014 but no draft lists the generic action set per family (can you reply to any transition? cite any artefact from a new act?). Material-family gets no actions anywhere: verify-digest, open-bytes, and cite-this-from-a-new-act are implied by Drafts A and C but declared by nobody.",
+      "layer": "applicative"
+    },
+    {
+      "item": "Multi-parent connection rendering",
+      "why": "parents is a list, and Draft A's refused-merge alternative is precisely 'a new transition citing both states as parents'. B's edge machinery assumes two endpoints ('drawn as an edge in the graph'); how a connection with three parents draws \u2014 and whether it is an edge-kind subject at all \u2014 is unspecified.",
+      "layer": "applicative"
+    },
+    {
+      "item": "nodeArea last-segment collision across id schemes",
+      "why": "B keys workspaces by the subject id's last segment so trn:sha256:X and state:sha256:X (a transition and an artefact whose digests coincide, or any scheme sharing the segment) map to the same nodes/X folder. Improbable but unhandled, and the spec explicitly relies on this path scheme as the mechanism giving edges and materials workspaces (web/packages/server/src/records.ts nodeArea).",
+      "layer": "applicative"
+    },
+    {
+      "item": "Per-relation edge-kind roster never actually enumerated",
+      "why": "Draft A \u00a72.2 promises 'one presentation edge-kind per relation' (16 CiTO + 3 local) but only B's dispute is ever specified. The relations with lifecycle consequences get no treatment: does a retracts edge dim its target? does repliesTo get the thread component Draft C item 17 promises ('threads are a presentation of repliesTo chains' \u2014 no thread component exists in the registry)? do usesDataFrom/usesMethodIn edges surface on the material node they draw from?",
+      "layer": "applicative"
+    },
+    {
+      "item": "Redaction-grounds extensibility absent from the extensibility table",
+      "why": "vocab.py states REDACTION_GROUNDS 'is a local set and a community charter may replace it' \u2014 but B \u00a74.1's who-may-extend-what table omits redaction grounds entirely while declaring restriction grounds closed. A charter replacing redaction grounds changes what the redaction action's input form offers and what the redaction-notice component displays; the machinery has no row for it.",
+      "layer": "protocol"
+    },
+    {
+      "item": "performed vs registration time presentation",
+      "why": "C2 allows registration later than performance (Draft A scenario 8), and paper-IV notes backdating is detectable only via a second custodian (Req 17.4). No draft says which time the chronology view orders by, how a large performed/registered gap displays, or whether the provenance component shows both timestamps \u2014 the honesty surface for offline field recording is undefined.",
+      "layer": "protocol"
+    }
+  ]
+}

@@ -1,0 +1,106 @@
+{
+  "findings": [
+    {
+      "about": "Draft A \u00a76 (refusals table) \u2014 \"filter view by performer is at most a transient [A] query\"",
+      "problem": "Permits a per-person view of the record. The design note bans the per-person timeline outright and Draft C item 42 refuses the affordance in any form; transience does not change what the screen answers (\"what has this person done\"), and a query the application itself offers is an instrument built for studying a person even if never stored. The union thus both refuses and permits the same feature.",
+      "constraint": "C6",
+      "fix": "Delete the allowance. Performer appears only in the single-node detail panel; the application offers no performer-scoped listing, transient or otherwise. The files remain grep-able under C10 \u2014 that is where the capability lawfully lives, outside the application."
+    },
+    {
+      "about": "Draft A \u00a75.7 and \u00a73.4 \u2014 shared instrument booking registry in the local plane",
+      "problem": "A booking registry is a named roster of who will be at which instrument when \u2014 future presence. Draft A itself states \"no attendee list anywhere, even locally,\" and Draft C item 7 refuses shared rosters of intent as \"an attendance list with a tense change.\" Local-and-never-exported does not cure a who-list shared across the group; Draft A even concedes it is \"presence-adjacent\" and keeps it.",
+      "constraint": "C6",
+      "fix": "Book slots, not people: shared state shows only taken/free per instrument slot, with each party's own bookings held in their private local plane; no shared view ever pairs a name with a time and place."
+    },
+    {
+      "about": "Draft A \u00a74.3 and Draft B \u00a72 \u2014 bridge as a free-standing action class",
+      "problem": "Draft C's S4 shows a bare citation transition is a record made so that a record exists, citing nothing specific in C4's sense. Draft A ships exactly those buttons (cite-material, cite-external, attach-minutes) with no required content; Draft B keeps bridge as a sibling class whose definition requires only an --artefact flag \u2014 its two examples happen to require a body, but nothing in the class contract or the manifest loader does. The strain C identified survives in both.",
+      "constraint": "C1",
+      "fix": "Make bridging a parameter of recording actions (an artefacts picker inside a real act), or have the loader reject any bridge template that lacks a closed-vocabulary act and a required content input."
+    },
+    {
+      "about": "Draft A \u00a74.1 \u2014 administrative operations filed under recording actions",
+      "problem": "disclosure_changed, redaction, key_rotation, fork_declared, attribution_contested, binding_recorded, deposit_recorded, plus register/attest, are listed under \"recording actions (each produces one transition through grrp)\". None produces a transition; they write the sidecar or operations plane, and attestation annotates the registration of an existing transition. Draft B retains only three action classes, so across the union C8's redaction path and C7's widen path have no lawful action class \u2014 Draft C's S5, unresolved.",
+      "constraint": "layering",
+      "fix": "Add a fourth action class, administrative: routed through grrp disclose/redact and the operations vocabulary, sidecar-and-operations-plane only, widen-or-remove-content-only, ground required; move register/attest into it."
+    },
+    {
+      "about": "Draft B \u00a72 and \u00a73.2 \u2014 `registrar-differs` as a precondition on recording actions",
+      "problem": "C2 constrains registration, not performance, and registration may lawfully happen later than the act \u2014 Draft A \u00a75.8 depends on exactly this (record offline at camp, register on return). Gating the recording button on a distinct registrar being present blocks solo offline recording at group tier and makes the system fail without a second party reachable.",
+      "constraint": "C9",
+      "fix": "Evaluate registrar-differs at the registration/attestation step, not at recording; the transition is written immediately and shown as unattested until a different registrar signs."
+    },
+    {
+      "about": "Draft B \u00a72 \u2014 precondition `has-open-question`",
+      "problem": "The name implies questions carry an open/closed status. Dispositions are closed precisely so that nothing ever marks a question answered; if this precondition can evaluate false, the application has silently minted the fourth status the protocol refuses \u2014 the same reasoning under which \"mark-answered\" is refused elsewhere in all three drafts.",
+      "constraint": "C12",
+      "fix": "Rename and redefine to what its own comment says C4 requires \u2014 \"an identified prior state is selected as parent\" \u2014 which fails only when no subject is chosen, never because of any question's supposed status."
+    },
+    {
+      "about": "Draft A \u00a76 \u2014 C6 carve-out restated without Draft C's S8 scoping",
+      "problem": "\"Within-one-trajectory counts shown without comparison\" permits, by its letter, a count badge on every node of a multi-trajectory canvas \u2014 comparison by juxtaposition, the exact leak S8 names. In the union the scoping exists only as a review finding, not as spec text any implementer must follow.",
+      "constraint": "C6",
+      "fix": "Write S8 into the component spec: counts render only in the detail context of the single selected subject, never as decorations drawn simultaneously across the graph."
+    },
+    {
+      "about": "Draft B \u00a71 class table vs Draft C items 12 and 16 \u2014 workspace-facet doubling as the home of \"private\" material",
+      "problem": "B puts workspace files in git, so they travel with every clone and are visible to every project party; C routes \"private comments\" and personal task notes to that same workspace. \"Never bundled\" is not \"private\": a repo-shared mutable layer is neither private to its author nor absent from what travels under C10, so material written there in the expectation of privacy is quietly disclosed.",
+      "constraint": "layering",
+      "fix": "Define workspace-facet as shared-with-project scratch. Anything private \u2014 comments, pins, drafts not for colleagues \u2014 belongs in the never-exported local plane; reword C item 16 accordingly."
+    },
+    {
+      "about": "Draft C item 15 \u2014 attested registration offered as an approval mechanism",
+      "problem": "Attestation witnesses that an act was registered by someone other than its performer; it does not endorse content. Presenting it as \"approval\" mints protocol meaning C2 does not carry and pressures registrars into content gatekeeping \u2014 the refused approval-gate re-entering by connotation.",
+      "constraint": "C2",
+      "fix": "Approval-as-record is only an agrees/supports/confirms connection under the approver's key. Strike attestation from the approval reformulation and state in the spec that attestation carries no endorsement of content."
+    },
+    {
+      "about": "Draft B \u00a73.1 \u2014 the meeting kind's `schedule` component",
+      "problem": "The kind matches the minutes artefact, which exists as a node only after a transition cites it \u2014 after the meeting has happened. An upcoming meeting therefore has no subject for its calendar entry, recreating the pressure S1 warns about: someone will add a create-meeting-node path so the schedule has somewhere to live.",
+      "constraint": "C1",
+      "fix": "State that future-occasion entries live free-standing in .gra/calendar/, attached to no subject; the kind's schedule component merely surfaces a matching entry once the node exists through citation."
+    },
+    {
+      "about": "Draft B \u00a71.1 \u2014 the `commitments` component typed record-facet",
+      "problem": "Its data (release_at, embargo expiry) lives in the disclosure sidecar and is written only by grrp disclose \u2014 sidecar-facet by the spec's own class table. \u00a75.5 claims a component's storage class is fixed by its type so that \"does it travel\" is answerable by grep; this one type breaks that discipline.",
+      "constraint": "layering",
+      "fix": "Class it sidecar-facet: a read-only calendar over sidecar fields, leaving the widen-only write path untouched."
+    },
+    {
+      "about": "Draft A \u00a73.1 \u2014 \"Occasion badge\" listed among record-facet components",
+      "problem": "The badge shows \"trigger + shared-artefact cluster\", but cluster membership is derived at render time \u2014 Draft A's own \u00a71.2 says occasion detection is derived, never stored, and \u00a72.3 classes all derived groupings as applicative. A computed grouping inside the class defined as \"projections of signed fields; strictly read-only\" blurs the exact line that keeps computed things off the record's face.",
+      "constraint": "layering",
+      "fix": "Record-facet keeps only the trigger field; the cluster badge moves to derived/applicative presentation beside the same-occasion derived edges."
+    },
+    {
+      "about": "Draft B \u00a73 \u2014 manifest `title`/`label` fields, unguarded against the drift Draft C S6 names",
+      "problem": "Community manifests set arbitrary presentation labels (\"Certificate\", \"Reply\") with no requirement that the underlying protocol term stay inspectable or that labels map 1:1 onto vocabulary values; S6's rule exists only as a review recommendation. A charter package can therefore ship a de facto parallel vocabulary through labels alone \u2014 the thing vocab.py's own docstring forbids (\"never silently presented as though they were bound\").",
+      "constraint": "C12",
+      "fix": "Spec text plus loader checks: every kind, action, and component surface shows or links the underlying protocol value one gesture away; labels map 1:1 within a package (reject two labels for one value or one label for two); labels are never persisted into anything that travels."
+    },
+    {
+      "about": "Draft C item 19 \u2014 \"record-side closure is a `release` act\"",
+      "problem": "Repurposes release as a project-status marker. \"This project is closed\" is a fact about the project as a whole, which nothing in the record may carry; a UI archive affordance wired to a release act would produce a record so that a status exists.",
+      "constraint": "C4",
+      "fix": "Archiving is purely applicative (hide from my workspace list, local plane). Release remains a disclosure act about specific states and artefacts; the record's version of stopping is silence."
+    },
+    {
+      "about": "Draft B \u00a73.3 \u2014 `cite-evidence` hardwires `--relation supports`",
+      "problem": "Evidence \"bearing on this dispute\" may refute it; the template signs cito:supports regardless of the evidence's actual bearing, so the UI fabricates the semantic content of a signed record on the performer's behalf.",
+      "constraint": "none",
+      "fix": "Make relation a required input constrained to the bound CiTO set (supports, refutes, confirms, disputes), chosen by the performer."
+    },
+    {
+      "about": "Draft B \u00a75 vs Draft C S9 \u2014 universal components prepended non-removably to every edge kind",
+      "problem": "B mandates wholesale, non-removable inheritance of the universal set onto every edge kind; C's S9 argues each inherited component must survive the twelve tests independently, because unused inherited surfaces on relations are where the next violating feature request lands. The union ships both rules with the contradiction unresolved.",
+      "constraint": "none",
+      "fix": "Keep identity universal; grant workspace and other facets per family by stated argument (B's own manifests already do this in practice), or keep B's rule but require each universal to carry a written justification for edge subjects."
+    },
+    {
+      "about": "Draft A \u00a71.2 \u2014 occasion kind named \"Conference attendance\"",
+      "problem": "The label names the one thing the system never records. The occasion's actual content is engagement with a talk's material; the name invites a presence reading and is precisely the label drift S6 warns against.",
+      "constraint": "none",
+      "fix": "Rename (e.g. \"Conference session\" or \"Talk engagement\"); the realization \u2014 connection/question transitions citing the talk's paper \u2014 is unchanged."
+    }
+  ]
+}

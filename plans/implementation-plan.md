@@ -401,6 +401,12 @@ mistake, in miniature *(P-IV Req. 4.4, 5.3)*.
 **The protocol is implementable with none of it, and requires none of it** *(C9 · R14)*. Anything here
 is optional, additive, and clearly marked as outside conformance.
 
+> The applicative graph model — node kinds, edge kinds, components, actions — is specified in
+> [spec-graph-model.md](spec-graph-model.md) (v1 kernel; extension machinery deferred), with the
+> design-pass records in [design-pass-graph-model/](design-pass-graph-model/). Its build order:
+> recording acts from the page → attestation → the four-component panel → the meeting flow →
+> disclosure/redaction UI → import/fork surfaces.
+
 - [x] **`grrp ui`** — a local page for starting records, recording acts, and seeing the
       trajectory drawn. Stdlib only, loopback only,
       no account, nothing leaves the machine, a per-run token on every form. It shows the question,
