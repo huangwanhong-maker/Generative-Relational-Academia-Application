@@ -125,9 +125,7 @@ function ActDialog({
   return (
     <Modal open title={shape.title} onClose={onClose}>
       <form onSubmit={submit}>
-        <div className="note">
-          On: <em>{node.label || node.id}</em>
-        </div>
+        <p className="meta">On: <em>{node.label || node.id}</em></p>
         {shape.message !== false && (
           <label>
             {shape.act === 'claim' ? 'The position' : shape.act === 'challenge' ? 'The objection' : shape.act === 'transform' ? 'What it becomes' : shape.act === 'decide' ? 'The reason' : 'The outcome'}
@@ -243,11 +241,7 @@ function CalendarTab({ slug, subject, suggested }: { slug: string; subject: stri
           )}
         </div>
       </form>
-      <div className="note">
-        This entry lives on <strong>this machine only</strong> — the local plane. It is exported to
-        nobody, appears in no bundle, and its schema has no attendee field. Joining opens the link
-        and writes nothing anywhere: the moment joining left a trace, it would be presence logging.
-      </div>
+      <p className="meta">This machine only, never exported. Joining writes nothing.</p>
     </>
   )
 }
@@ -389,7 +383,7 @@ export function NodePanel({
             {occasion && (
               <>
                 <dt>read as</dt>
-                <dd>{occasion} — derived from the trigger on what cites it; the citations are the gathering. No list of people exists here, by design.</dd>
+                <dd>{occasion} — derived from what cites it</dd>
               </>
             )}
             {node.act === 'question' && line && (
@@ -398,7 +392,7 @@ export function NodePanel({
                 <dd>
                   {line.transitionCount} transition{line.transitionCount === 1 ? '' : 's'}
                   {line.openCount > 0 && <> · <span className="open-mark">{line.openCount} standing unanswered</span></>}
-                  <div className="meta">counted within this line only, compared with nothing</div>
+                  <div className="meta">within this line of work</div>
                 </dd>
               </>
             )}
@@ -418,19 +412,12 @@ export function NodePanel({
 
       {tab === 'disclosure' && (
         <>
-          <div className="note">
-            Disclosure <strong>widens and never narrows</strong> — there is no unpublish. A
-            restriction, when one is recorded, carries one of four grounds — rivalry, hazard,
-            exploratory vulnerability, appropriability — each leaving a stated <em>residue</em>{' '}
-            visible; a scheduled release may be shortened, never extended, and a refused extension
-            is itself recorded as a fact.
-          </div>
-          <div className="note warn-less">
-            <strong>This panel does not yet read the sidecar.</strong> Restrictions are recorded
-            through <span className="id">grrp disclose</span> and <span className="id">grrp redact</span>{' '}
-            and live beside the record; until this view is wired to them it makes no claim about
-            this item's disclosure state, in either direction.
-          </div>
+          <p className="meta">
+            <strong>Not yet wired to the sidecar</strong> — this view makes no claim about
+            restrictions, either way. They are recorded with{' '}
+            <span className="id">grrp disclose</span> and <span className="id">grrp redact</span>.
+          </p>
+          <p className="meta">Disclosure widens; it never narrows.</p>
         </>
       )}
 
@@ -497,12 +484,10 @@ export function NodePanel({
           )}
           {problem && <p className="warn">{problem}</p>}
 
-          <div className="note">
-            This workspace is shared scratch for the project — mutable, readable by every project
-            party, never in a bundle, and <strong>putting a file here records nothing</strong>. It
-            joins the record when an act cites its digest. Anything private belongs on your own
-            machine, not here.
-          </div>
+          <p className="meta">
+            Shared scratch, never bundled. <strong>Adding a file records nothing</strong> — it
+            joins the record when an act cites its digest.
+          </p>
         </>
       )}
 

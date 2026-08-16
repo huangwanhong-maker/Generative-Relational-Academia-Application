@@ -76,23 +76,11 @@ export function SignIn({ me, onSignedIn }: { me: Me; onSignedIn: () => Promise<v
       </form>
 
       <h2>New here</h2>
-      <div className="note">
-        <strong>Registration is closed at the moment.</strong> Ask whoever runs this server; they
-        add accounts with <span className="id">npm run account -- add &lt;name&gt;</span>.
-        <br />
-        <br />
-        Not a queue and not an approval. An account is access to this particular server, and
-        nothing here is a precondition for taking part: the record is plain files, and anyone can
-        hold a copy, continue it under any implementation, and hand it back — with no account, and
-        without asking.
-      </div>
-
-      <div className="note">
-        Your account reaches a keypair, and the keypair is what signs. Two people signed in here is
-        the ordinary case rather than a trick: a transition becomes attested when a party other
-        than the one who performed it registers it, so a second party is what gives an act any
-        weight at all.
-      </div>
+      <p className="meta">
+        <strong>Registration is closed.</strong> Ask whoever runs this server —{' '}
+        <span className="id">npm run account -- add &lt;name&gt;</span>. Reading and searching
+        need no account.
+      </p>
     </>
   )
 }

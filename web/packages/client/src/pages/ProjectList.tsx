@@ -39,7 +39,7 @@ export function ProjectCard({ project }: { project: Project }) {
       ))}
 
       {!project.trajectories.length && (
-        <div className="meta">no questions opened yet — nothing can be recorded until one is</div>
+        <div className="meta">no questions yet</div>
       )}
     </div>
   )

@@ -84,11 +84,7 @@ export function App() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
 
-      <footer>
-        A host for projects, not their authority. The record underneath is plain files: you can
-        hold a copy, continue it under any implementation, and verify it with no account here.
-        Nothing on this server is counted, scored or ranked.
-      </footer>
+      <footer>A host for projects, not their authority. The record underneath is plain files.</footer>
     </main>
   )
 }

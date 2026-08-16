@@ -100,64 +100,34 @@ function Overview({
   dev: boolean
   onWiden: () => Promise<void>
 }) {
-  const standing = project.trajectories.filter((trajectory) => trajectory.openCount > 0)
-
   return (
     <>
       {project.description && <Markdown source={project.description} />}
 
-      <h2>Questions open here</h2>
+      <h2>Questions</h2>
       {project.trajectories.length ? (
-        project.trajectories.map((trajectory) => (
-          <p className="framing" key={trajectory.trajId}>
-            {trajectory.question}
-          </p>
-        ))
+        <ul className="questions">
+          {project.trajectories.map((trajectory) => (
+            <li key={trajectory.trajId}>
+              <span>{trajectory.question}</span>
+              {trajectory.openCount > 0 && (
+                <span className="open-mark">
+                  {trajectory.openCount} unanswered
+                </span>
+              )}
+            </li>
+          ))}
+        </ul>
       ) : (
-        <div className="note">
-          None yet. A project starts empty, and nothing can be recorded until a question is open —
-          every act changes an identified state, and the question is the first state there is.
-        </div>
-      )}
-
-      <h2>Standing unanswered</h2>
-      {standing.length ? (
-        standing.map((trajectory) => (
-          <div className="card open" key={trajectory.trajId}>
-            <div className="meta open-mark">
-              {trajectory.openCount === 1
-                ? 'one objection nobody has answered'
-                : `${trajectory.openCount} objections nobody has answered`}
-            </div>
-            <div className="meta">under: {trajectory.question}</div>
-          </div>
-        ))
-      ) : (
-        <div className="note">
-          Nothing objected to and unanswered. That is a statement about what has been recorded, not
-          a claim that the work is sound.
-        </div>
+        <p className="meta">None yet — open one from the Questions tab.</p>
       )}
 
       {mine && project.disclosure !== 'listed' && (
-        <>
-          <h2>Share this project</h2>
-          <div className="note">
-            Listing it lets anyone read and search it, including people with no account here. It
-            cannot be unlisted afterwards — disclosure widens and never narrows, so this is a
-            decision rather than a setting.
-          </div>
-          <button onClick={onWiden}>share it</button>
-        </>
+        <div className="row" style={{ marginTop: '1.6rem' }}>
+          <button onClick={onWiden}>share this project</button>
+          <span className="meta">Sharing cannot be undone.</span>
+        </div>
       )}
-
-      <h2>Working on it</h2>
-      <div className="note">
-        Select anything on the <em>Trajectories</em> tab to record against it — a position, an
-        objection, a change, a decision, a check, a release. Every act is one{' '}
-        <span className="id">grrp</span> invocation; the terminal records the same record, and
-        nothing recorded there is invisible here.
-      </div>
 
       {dev && <GitHistory slug={project.slug} />}
     </>

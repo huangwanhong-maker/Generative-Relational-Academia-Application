@@ -43,10 +43,7 @@ export function Home({ me }: { me: Me }) {
           trying to answer, the position they took, the objection nobody has answered yet — and to
           hand that record to someone else intact.
         </p>
-        <p className="lede">
-          Not a publication venue and not a metrics dashboard. What is recorded here is the
-          movement of an argument, including the parts that did not resolve.
-        </p>
+
       </header>
 
       <form className="searchbar" onSubmit={search}>
@@ -68,29 +65,7 @@ export function Home({ me }: { me: Me }) {
         }
       />
 
-      {me.signedIn ? (
-        <div className="note">
-          Your own projects — shared or not — are on{' '}
-          <Link to="/projects">
-            <strong>Your projects</strong>
-          </Link>
-          .
-        </div>
-      ) : (
-        <div className="note">
-          You are reading this signed out, which is the intended way to read it. An account is
-          needed only to open a project of your own. Registration is closed on this server; that is
-          a property of this host and not a gate on taking part, because the record is plain files
-          that anyone may hold, continue and verify without asking.
-        </div>
-      )}
 
-      <div className="note">
-        This lists projects on <em>this</em> server. There is no directory of other people's work
-        anywhere here, and there is not going to be one: a service that knew where everyone's
-        records were would be party to every entry, and what makes a record credible is
-        registration by parties who did not coordinate.
-      </div>
     </>
   )
 }

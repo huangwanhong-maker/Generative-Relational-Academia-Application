@@ -97,16 +97,10 @@ export function Files({ project, me }: { project: Project; me: Me }) {
         </>
       )}
 
-      <div className="note">
-        Adding a file here <strong>records nothing</strong>. Nothing enters the log, no identifier
-        is minted, and nobody is credited. This is material, and material is not evidence.
-        <br />
-        <br />
-        A file becomes part of the record when a transition cites it — by the hash shown above,
-        through the artefact field the transition skeleton already carries. That is an act somebody
-        performs deliberately, and it is done with <span className="id">grrp connect</span> against
-        the files. Bringing it to this page is on the list.
-      </div>
+      <p className="meta">
+        <strong>Adding a file records nothing.</strong> It joins the record when an act cites the
+        digest shown above.
+      </p>
     </>
   )
 }

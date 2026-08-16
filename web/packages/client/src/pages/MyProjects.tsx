@@ -45,11 +45,7 @@ export function MyProjects({ me }: { me: Me }) {
     <>
       <header>
         <h1>Your projects</h1>
-        <p className="lede">
-          A project holds the questions you are working on and the material they draw on.
-          Underneath it is a directory of plain files — readable without this page, and yours to
-          take anywhere without asking anyone.
-        </p>
+        <p className="lede">Plain files underneath — yours to take anywhere.</p>
       </header>
 
       <div className="row">
@@ -88,18 +84,12 @@ export function MyProjects({ me }: { me: Me }) {
               cancel
             </button>
           </div>
-          <div className="meta">
-            A project starts empty. You open questions inside it, and each one stays open until
-            something answers it — there is no way to mark a question done, because most of them
-            never are.
-          </div>
+          <div className="meta">A project starts empty; questions are opened inside it.</div>
         </form>
       </Modal>
 
-      <div className="note">
-        A project you create is not shared on this server until you say so, and sharing only ever
-        widens: there is no unshare, here or anywhere in the design. You sign as{' '}
-        <span className="id">{me.party}</span>.
+      <div className="meta signing-as">
+        You sign as <span className="id">{me.party}</span>
       </div>
     </>
   )

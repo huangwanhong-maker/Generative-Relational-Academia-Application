@@ -79,15 +79,12 @@ export function SearchPage({ me }: { me: Me }) {
               <div className="meta">{highlight(hit.snippet, query)}</div>
             </div>
           ))}
-          {ordering && <div className="note">Ordered {ordering}.</div>}
+          {ordering && <p className="meta">Ordered {ordering}.</p>}
         </>
       )}
 
       {hits === null && (
-        <div className="note">
-          Search finds what mentions a word. It does not decide which of the results you should
-          read first, and it does not report how well anything matched.
-        </div>
+        <p className="meta hint">Search filters; it does not rank.</p>
       )}
     </>
   )

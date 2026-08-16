@@ -132,10 +132,7 @@ export function Questions({
               cancel
             </button>
           </div>
-          <div className="meta">
-            Write it down before the framing hardens and you forget you chose it. It stays open
-            until something answers it, and there is no control that marks it done.
-          </div>
+          <div className="meta">It stays open until something answers it.</div>
         </form>
       </Modal>
     </>
@@ -144,10 +141,7 @@ export function Questions({
   if (!project.trajectories.length) {
     return (
       <>
-        <div className="note">
-          No questions open yet. Nothing can be recorded in this project until there is one: every
-          act changes an identified state, and the question is the first state there is.
-        </div>
+        <p className="meta">No questions open yet.</p>
         {opener}
       </>
     )
@@ -189,10 +183,7 @@ export function Questions({
             <Transition key={transition.id} transition={transition} />
           ))}
 
-          <div className="note">
-            Parents before children, then in the order they were performed. Not ordered by
-            importance, because nothing here computes importance.
-          </div>
+
         </>
       )}
     </>

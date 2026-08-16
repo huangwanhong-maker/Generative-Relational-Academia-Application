@@ -72,6 +72,9 @@ interface PNode {
   h: number
 }
 
+/** How tall the canvas stands. The graph is the point of this tab. */
+const HEIGHT = 620
+
 const SIZES: Record<PKind, { w: number; h: number }> = {
   transition: { w: 200, h: 68 },
   chip: { w: 128, h: 28 },
@@ -211,7 +214,9 @@ export function GraphCanvas({
       maxX = Math.max(maxX, at.x + p.w); maxY = Math.max(maxY, at.y + p.h)
     }
     const width = frame.current.clientWidth
-    const s = Math.min(1, (width - 48) / Math.max(1, maxX - minX), (560 - 40) / Math.max(1, maxY - minY))
+    // Up to 1.6: a small graph should fill the frame rather than huddle in a
+    // corner of it. Scale is fit, never emphasis.
+    const s = Math.min(1.6, (width - 56) / Math.max(1, maxX - minX), (HEIGHT - 48) / Math.max(1, maxY - minY))
     setView({ s, tx: 24 - minX * s, ty: 20 - minY * s })
   }
 
@@ -347,7 +352,7 @@ export function GraphCanvas({
   return (
     <div className="canvas-frame" ref={frame}>
       <svg
-        height={560}
+        height={HEIGHT}
         className={panning ? 'panning' : ''}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
@@ -567,12 +572,10 @@ export function Trajectories({
           )}
 
           {!selectedNode && (
-            <div className="note">
-              Select anything — a card, or the small labelled capsule on a line, which is a
-              connection: an edge that is itself a recorded act, with its own content and its own
-              workspace. Deeper-toned edges cross between questions; material cited from more than
-              one line of work appears once, with an edge to each.
-            </div>
+            <p className="meta hint">
+              Select a card, or a capsule on a line — a capsule is a connection, which is itself a
+              recorded act.
+            </p>
           )}
         </>
       )}
@@ -630,10 +633,7 @@ export function Trajectories({
               cancel
             </button>
           </div>
-          <div className="meta">
-            A connection is an act: recorded, attributed, and it says why the connection matters.
-            Relations bind to CiTO rather than to words invented here.
-          </div>
+          <div className="meta">Relations bind to CiTO.</div>
         </form>
       </Modal>
     </>
