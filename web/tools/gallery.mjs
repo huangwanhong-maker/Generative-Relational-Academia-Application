@@ -39,7 +39,7 @@ async function shoot(name, { path, full = false, click, wait } = {}) {
     await settle()
   }
   if (click) {
-    await page.evaluate(click)
+    await click(page)
     await settle()
   }
   await page.screenshot({ path: `${OUT}/${name}.png`, fullPage: full })
@@ -59,22 +59,29 @@ await Promise.all([page.click('button[type="submit"]'), settle(1500)])
 
 console.log('signed in:')
 await shoot('03-your-projects', { path: '/projects', full: true })
-await shoot('04-project-overview', { path: '/p/trust', full: true })
-await shoot('05-trajectories', { path: '/p/trust?tab=trajectories', full: true, wait: 'svg g.n' })
+await shoot('04-project-overview', { path: '/p/field-memory', full: true })
+await shoot('05-trajectories', { path: '/p/field-memory?tab=trajectories', full: true, wait: 'svg g[data-node]' })
 
 // Open the node panel by clicking the first transition box in the drawing.
 await shoot('06-node-panel', {
-  path: '/p/trust?tab=trajectories',
+  path: '/p/field-memory?tab=trajectories',
   full: true,
-  wait: 'svg g.n',
-  click: () => {
-    const box = document.querySelector('svg g.n')
-    box?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+  wait: 'svg g[data-node]',
+  click: async (page) => {
+    const box = await page.evaluate(() => {
+      const el = [...document.querySelectorAll('[data-node]')].find((e) =>
+        e.textContent.toLowerCase().includes('supports'),
+      )
+      if (!el) return null
+      const r = el.getBoundingClientRect()
+      return { x: r.x + r.width / 2, y: r.y + r.height / 2 }
+    })
+    if (box) await page.mouse.click(box.x, box.y)
   },
 })
 
-await shoot('07-questions', { path: '/p/trust?tab=questions', full: true })
-await shoot('08-search', { path: '/search?q=trust', full: true })
+await shoot('07-questions', { path: '/p/field-memory?tab=questions', full: true })
+await shoot('08-search', { path: '/search?q=negative%20results', full: true })
 
 await browser.close()
 console.log(`written to ${OUT}`)

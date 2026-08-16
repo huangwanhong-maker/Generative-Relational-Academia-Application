@@ -302,6 +302,114 @@ export async function buildApp(options: Options): Promise<App> {
   })
 
   /**
+   * May this party record here? The creator always may. Once the project is
+   * LISTED, any signed-in party may — recording is how a second party comes to
+   * exist in a record at all, and a surface where only the creator can act is
+   * a surface on which attested registration (C2) can never happen. An
+   * unshared project stays the creator's alone: sharing is the deliberate act
+   * that opens it.
+   */
+  const mayRecordIn = (project: { disclosure: string; openedBy: string }, party: string) =>
+    project.openedBy === party || project.disclosure === 'listed'
+
+  /**
+   * Record an act: the reason this application exists at all.
+   *
+   * Each act is exactly one grrp invocation (spec §6, invariant I2): the UI
+   * never constructs a skeleton, never computes an identifier, and surfaces
+   * grrp's refusal verbatim. The only precondition checked here is the one
+   * the UI can honestly know — which project, which line of work (C4). Every
+   * other lawfulness question belongs to grrp.
+   */
+  fastify.post('/api/projects/:slug/acts', { onRequest: requireSession }, async (request, reply) => {
+    const { slug } = request.params as { slug: string }
+    const project = await getProject(db, slug)
+    if (!project) return reply.code(404).send({ error: 'no project by that name here' })
+    if (!mayRecordIn(project, request.session!.party)) {
+      return reply.code(403).send({
+        error:
+          'this project is not shared yet, so only the party who created it records here. ' +
+          'Once it is listed, any signed-in party may record — and register others’ acts.',
+      })
+    }
+    const body = request.body as {
+      act?: string
+      traj?: string
+      state?: string
+      message?: string
+      target?: string
+      trigger?: string
+      relation?: string
+      failed?: boolean
+      abandon?: boolean
+      answering?: string[]
+    }
+    const message = (body.message ?? '').trim()
+    const traj = (body.traj ?? '').replace(/^traj:/, '')
+    const state = (body.state ?? '').trim()
+
+    // The argv shape per act mirrors the grrp CLI exactly. claim takes one
+    // positional that is either a trajectory or a state; the others take an
+    // optional state positional plus --traj.
+    const anchored = state ? [state] : []
+    const inTraj = traj ? ['-t', traj] : []
+    const templates: Record<string, () => string[] | { error: string }> = {
+      claim: () => {
+        if (!message) return { error: 'content is required for this act' }
+        const args = ['claim', state || traj, '-m', message]
+        if (body.target) args.push('--target', body.target)
+        if (body.trigger) args.push('--trigger', body.trigger)
+        return args
+      },
+      challenge: () => {
+        if (!message) return { error: 'content is required for this act' }
+        const args = ['challenge', ...anchored, '-m', message, ...inTraj]
+        if (body.target) args.push('--target', body.target)
+        if (body.trigger) args.push('--trigger', body.trigger)
+        return args
+      },
+      transform: () => {
+        if (!message) return { error: 'content is required for this act' }
+        const args = ['transform', ...anchored, '-m', message, ...inTraj]
+        if (body.relation) args.push('--relation', body.relation)
+        if (body.trigger) args.push('--trigger', body.trigger)
+        for (const answered of body.answering ?? []) args.push('--answering', answered)
+        return args
+      },
+      decide: () => {
+        if (!message) return { error: 'content is required for this act' }
+        const args = ['decide', ...anchored, '-m', message, ...inTraj]
+        if (body.abandon) args.push('--abandon')
+        for (const answered of body.answering ?? []) args.push('--answering', answered)
+        return args
+      },
+      verify: () => {
+        if (!message) return { error: 'content is required for this act' }
+        const args = ['verify', ...anchored, '-m', message, ...inTraj]
+        if (body.failed) args.push('--failed')
+        if (body.trigger) args.push('--trigger', body.trigger)
+        return args
+      },
+      release: () => ['release', ...anchored, ...inTraj],
+    }
+    const template = templates[body.act ?? '']
+    if (!template) {
+      return reply.code(400).send({ error: `${JSON.stringify(body.act)} is not an act this page records` })
+    }
+    const argv = template()
+    if (!Array.isArray(argv)) return reply.code(400).send(argv)
+
+    const recorded = await runGrrp(argv, join(options.recordsRoot, slug))
+    if (!recorded.ok) {
+      // grrp's refusal, verbatim. It names the rule it is applying, which is
+      // the difference between a refusal and a bug.
+      return reply.code(400).send({ error: recorded.stderr.trim() || recorded.stdout.trim() })
+    }
+    await reindex(db, options.recordsRoot)
+    return reply.code(201).send(projectGraph(options.recordsRoot, slug))
+  })
+
+  /**
    * Relate one state to another, or to work outside the project.
    *
    * This is `grrp connect`, which is an **act** -- it is recorded, it is
@@ -313,8 +421,12 @@ export async function buildApp(options: Options): Promise<App> {
     const { slug } = request.params as { slug: string }
     const project = await getProject(db, slug)
     if (!project) return reply.code(404).send({ error: 'no project by that name here' })
-    if (project.openedBy !== request.session!.party) {
-      return reply.code(403).send({ error: 'only the party who created a project may record in it' })
+    if (!mayRecordIn(project, request.session!.party)) {
+      return reply.code(403).send({
+        error:
+          'this project is not shared yet, so only the party who created it records here. ' +
+          'Once it is listed, any signed-in party may record a connection.',
+      })
     }
     const body = request.body as {
       traj?: string

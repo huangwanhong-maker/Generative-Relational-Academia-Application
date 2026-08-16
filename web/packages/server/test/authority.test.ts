@@ -784,3 +784,96 @@ describe('the graph is not sequential, and needed no new vocabulary', () => {
     expect(body.toLowerCase()).not.toContain('merge')
   })
 })
+
+
+describe('recording acts from the page (spec §6.1)', () => {
+  async function oneQuestion() {
+    const session = await signIn()
+    await app.fastify.inject({
+      method: 'POST', url: '/api/projects', headers: session.headers,
+      payload: { title: 'trust' },
+    })
+    const opened = await ask(session, 'trust', 'Is trust a property between individuals?')
+    return { session, traj: opened.json().trajectories[0].trajId as string }
+  }
+
+  it('records a claim, an objection and a failed check through grrp', async () => {
+    const { session, traj } = await oneQuestion()
+
+    const claimed = await app.fastify.inject({
+      method: 'POST', url: '/api/projects/trust/acts', headers: session.headers,
+      payload: { act: 'claim', traj, message: 'Trust is shaped by asymmetry of power.' },
+    })
+    expect(claimed.statusCode, claimed.body).toBe(201)
+
+    const objected = await app.fastify.inject({
+      method: 'POST', url: '/api/projects/trust/acts', headers: session.headers,
+      payload: { act: 'challenge', traj, message: 'This cannot separate trust from compliance.' },
+    })
+    expect(objected.statusCode, objected.body).toBe(201)
+
+    const checked = await app.fastify.inject({
+      method: 'POST', url: '/api/projects/trust/acts', headers: session.headers,
+      payload: { act: 'verify', traj, message: 'It did not replicate.', failed: true },
+    })
+    expect(checked.statusCode, checked.body).toBe(201)
+
+    const graph = checked.json()
+    const acts = graph.nodes
+      .filter((n: { shape: string }) => n.shape === 'transition')
+      .map((n: { act: string }) => n.act)
+    expect(acts).toContain('claim')
+    expect(acts).toContain('challenge')
+    expect(acts).toContain('verification')
+    // The failed check stands as unresolved — the vocabulary keeps that word
+    // precisely so this state can be permanent.
+    const failed = graph.nodes.find((n: { act: string }) => n.act === 'verification')
+    expect(failed.disposition).toBe('unresolved')
+  })
+
+  it('refuses an unknown act before grrp is ever invoked', async () => {
+    const { session, traj } = await oneQuestion()
+    const reply = await app.fastify.inject({
+      method: 'POST', url: '/api/projects/trust/acts', headers: session.headers,
+      payload: { act: 'approve', traj, message: 'Looks good to me.' },
+    })
+    expect(reply.statusCode).toBe(400)
+  })
+
+  it('surfaces grrp refusals verbatim rather than translating them', async () => {
+    const { session, traj } = await oneQuestion()
+    void traj
+    const reply = await app.fastify.inject({
+      method: 'POST', url: '/api/projects/trust/acts', headers: session.headers,
+      payload: { act: 'challenge', traj: 'no-such-line-of-work', message: 'An objection.' },
+    })
+    expect(reply.statusCode).toBe(400)
+    // grrp's own words, not a translation of them.
+    expect(reply.json().error.length).toBeGreaterThan(0)
+  })
+
+  it('keeps an unshared project the creator’s alone', async () => {
+    const { traj } = await oneQuestion()
+    const stranger = await signIn('grace', 'another-fine-password')
+    const reply = await app.fastify.inject({
+      method: 'POST', url: '/api/projects/trust/acts', headers: stranger.headers,
+      payload: { act: 'claim', traj, message: 'Mine now.' },
+    })
+    expect(reply.statusCode).toBe(403)
+  })
+
+  it('lets any signed-in party record in a LISTED project — C2 needs a second party', async () => {
+    const { session, traj } = await oneQuestion()
+    await app.fastify.inject({
+      method: 'POST', url: '/api/projects/trust/disclose', headers: session.headers, payload: {},
+    })
+    const colleague = await signIn('grace', 'another-fine-password')
+    const reply = await app.fastify.inject({
+      method: 'POST', url: '/api/projects/trust/acts', headers: colleague.headers,
+      payload: { act: 'challenge', traj, message: 'An objection from a second party.' },
+    })
+    expect(reply.statusCode, reply.body).toBe(201)
+    // Recording is how a second party comes to exist in a record at all;
+    // a creator-only surface is one on which attestation can never happen.
+  })
+})

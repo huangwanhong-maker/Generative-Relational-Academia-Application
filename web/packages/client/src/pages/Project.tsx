@@ -153,11 +153,10 @@ function Overview({
 
       <h2>Working on it</h2>
       <div className="note">
-        Positions, objections and checks are recorded with <span className="id">grrp</span> against
-        the files themselves — <span className="id">grrp claim</span>,{' '}
-        <span className="id">grrp challenge</span>, <span className="id">grrp verify</span>.
-        Bringing those to this page is the next piece of work; nothing recorded at the terminal is
-        invisible here, it only needs a reindex.
+        Select anything on the <em>Trajectories</em> tab to record against it — a position, an
+        objection, a change, a decision, a check, a release. Every act is one{' '}
+        <span className="id">grrp</span> invocation; the terminal records the same record, and
+        nothing recorded there is invisible here.
       </div>
 
       {dev && <GitHistory slug={project.slug} />}

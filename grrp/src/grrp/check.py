@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from . import canonical, keys, vocab
+from . import canonical, keys, store, vocab
 from .store import Repo
 
 
@@ -59,6 +59,19 @@ def check_repo(repo: Repo) -> Report:
     return report
 
 
+def _repo_ids(repo: Repo) -> set:
+    """Every transition identifier in the record, across all trajectories."""
+    cached = getattr(repo, "_check_id_cache", None)
+    if cached is None:
+        cached = {
+            record.get("id")
+            for other in repo.trajectory_ids()
+            for record in repo.transitions(other)
+        }
+        object.__setattr__(repo, "_check_id_cache", cached)
+    return cached
+
+
 def _check_trajectory(repo: Repo, traj_id: str, report: Report) -> None:
     records = repo.transitions(traj_id)
     by_id = {record.get("id"): record for record in records}
@@ -77,7 +90,7 @@ def _check_trajectory(repo: Repo, traj_id: str, report: Report) -> None:
                 "The transition has been edited, or was written by an implementation "
                 "with a different canonicalisation."
             )
-        expected_path = repo.transition_path(traj_id, record["id"])
+        expected_path = store.long_path(repo.transition_path(traj_id, record["id"]))
         if not expected_path.is_file():
             report.fail(f"{traj_id}/{label}: filename does not match the identifier")
 
@@ -161,8 +174,15 @@ def _check_trajectory(repo: Repo, traj_id: str, report: Report) -> None:
                 )
 
         for parent in record.get("parents") or []:
-            if parent not in by_id:
-                report.fail(f"{traj_id}/{label}: parent {canonical.short(parent)} is missing")
+            if parent in by_id:
+                continue
+            # A parent may lawfully live in another trajectory: connecting to
+            # a state elsewhere makes the transition that produced it a parent
+            # -- that is how cross-question edges exist at all, and this check
+            # once miscalled every such record as damaged.
+            if parent in _repo_ids(repo):
+                continue
+            report.fail(f"{traj_id}/{label}: parent {canonical.short(parent)} is missing")
 
         registration = record.get("registration") or {}
         if registration.get("attested"):
@@ -266,7 +286,11 @@ def _check_content(repo: Repo, traj_id: str, records: list[dict], report: Report
 
     sealed = repo.grrp_dir / "sealed"
     for state_id in sorted(referenced):
-        path = repo.state_path(traj_id, state_id)
+        # Through long_path, like every read in store.py: a state file sits 64
+        # hex digits deep below wherever the record lives, and on Windows a
+        # bare path over 260 characters reports "missing" for a file that is
+        # right there -- which this check would then miscall as tampering.
+        path = store.long_path(repo.state_path(traj_id, state_id))
         if path.is_file():
             # The identifier is the hash of the bytes on disk, so anyone
             # holding the file can check it without this tool. Verifying it
@@ -280,7 +304,7 @@ def _check_content(repo: Repo, traj_id: str, records: list[dict], report: Report
                     "carries a .gitattributes telling it not to."
                 )
             continue
-        if (sealed / f"{state_id.split(':')[-1]}.md").is_file():
+        if store.long_path(sealed / f"{state_id.split(':')[-1]}.md").is_file():
             report.note(
                 f"{traj_id}/{canonical.short(state_id)}: sealed. The record says a state with "
                 "this identifier was held at this time, and says nothing about what it was. "

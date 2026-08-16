@@ -81,15 +81,26 @@ export interface GraphNode {
   id: string
   shape: 'transition' | 'artefact'
   act: string | null
+  target: string | null
   trigger: string | null
+  relation: string | null
   disposition: string | null
   trajId: string | null
   question: string | null
   label: string
+  /** Full state content, for the record panel. The label is its first line. */
+  body: string | null
   attested: boolean
+  performer: string | null
   performed: string
-  /** What this transition committed to, by hash. Part of the record. */
-  cited: CitedArtefact[]
+  registrar: string | null
+  registeredAt: string | null
+  parents: string[]
+  posteriorState: string | null
+  cited: { ref: string; label: string }[]
+  /** Artefact nodes: the triggers on citing transitions. The occasion reading
+   *  (discussion reads as a meeting) derives from these, and is never stored. */
+  triggers: string[]
 }
 
 export interface GraphEdge {
@@ -174,6 +185,30 @@ export const api = {
   graph: (slug: string) =>
     request<{ nodes: GraphNode[]; edges: GraphEdge[] }>(
       `/api/projects/${encodeURIComponent(slug)}/graph`,
+    ),
+
+  /**
+   * Record an act. Exactly one grrp invocation stands behind each; its
+   * refusal, when it refuses, is the message shown.
+   */
+  act: (
+    slug: string,
+    body: {
+      act: string
+      traj: string
+      state?: string
+      message?: string
+      target?: string
+      trigger?: string
+      relation?: string
+      failed?: boolean
+      abandon?: boolean
+      answering?: string[]
+    },
+  ) =>
+    request<{ nodes: GraphNode[]; edges: GraphEdge[] }>(
+      `/api/projects/${encodeURIComponent(slug)}/acts`,
+      { method: 'POST', body: JSON.stringify(body) },
     ),
 
   /** Relate one state to another, or to work outside the project. An act. */

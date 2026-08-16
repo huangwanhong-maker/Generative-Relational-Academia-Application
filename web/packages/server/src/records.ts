@@ -365,7 +365,10 @@ const NODES_DIR = 'nodes'
  * and it is performed deliberately.
  */
 export function nodeArea(nodeId: string): string {
-  return `${NODES_DIR}/${safeSegment(nodeId.split(':').pop() ?? nodeId)}`
+  // Family-prefixed (spec §10): a transition and an artefact whose digest
+  // tails coincide must not share a folder.
+  const family = nodeId.startsWith('artefact:') ? 'a' : 't'
+  return `${NODES_DIR}/${family}/${safeSegment(nodeId.split(':').pop() ?? nodeId)}`
 }
 
 /**
@@ -504,6 +507,11 @@ export interface TransitionView {
   performer: string
   performed: string
   attested: boolean
+  /** Who registered it, and when. Registration may lawfully be later than
+   *  performance (offline field work) — the panel shows both times when they
+   *  differ, which is the honesty surface for that gap. */
+  registrar: string | null
+  registeredAt: string | null
   /** The content of the state this act produced, when it is held here. */
   body: string | null
   artefacts: unknown[]
@@ -545,6 +553,8 @@ export function readTrajectoryDetail(
     performer: String(record['performer'] ?? ''),
     performed: String(record['performed'] ?? ''),
     attested: Boolean((record['registration'] as Record<string, unknown>)?.['attested']),
+    registrar: ((record['registration'] as Record<string, unknown>)?.['registrar'] as string) ?? null,
+    registeredAt: ((record['registration'] as Record<string, unknown>)?.['time'] as string) ?? null,
     body: body(record['posterior_state']),
     artefacts: (record['artefacts'] as unknown[]) ?? [],
   }))
@@ -689,15 +699,28 @@ export interface GraphNode {
   /** 'transition' or 'artefact'. Not a type vocabulary -- a drawing distinction. */
   shape: 'transition' | 'artefact'
   act: string | null
+  target: string | null
   trigger: string | null
+  relation: string | null
   disposition: string | null
   trajId: string | null
   question: string | null
   label: string
+  /** The full state content, for the record panel. The label is its first line. */
+  body: string | null
   attested: boolean
+  performer: string | null
   performed: string
+  registrar: string | null
+  registeredAt: string | null
+  parents: string[]
+  posteriorState: string | null
   /** What this transition committed to, by hash. Part of the record. */
   cited: { ref: string; label: string }[]
+  /** Artefact nodes only: every trigger its citing transitions carry. The
+   *  occasion reading (discussion reads as a meeting) is derived from these
+   *  and never stored -- the citation itself is the occasion membership. */
+  triggers: string[]
 }
 
 export interface GraphEdge {
@@ -718,6 +741,20 @@ export function projectGraph(
   const edges: GraphEdge[] = []
   const trajectoryOf = new Map<string, string>()
 
+  // States this project's own trajectories hold. A connection to one of them
+  // records both a parent edge AND an artefact reference (grrp's behaviour);
+  // drawing the reference too would show the same link twice, once as an edge
+  // and once as a phantom material node. The record keeps both; the drawing
+  // keeps the edge.
+  const heldStates = new Set<string>()
+  for (const trajectory of project.trajectories) {
+    const detail = readTrajectoryDetail(root, slug, trajectory.trajId)
+    for (const transition of detail?.transitions ?? []) {
+      if (transition.posteriorState) heldStates.add(transition.posteriorState)
+      if (transition.priorState) heldStates.add(transition.priorState)
+    }
+  }
+
   for (const trajectory of project.trajectories) {
     const detail = readTrajectoryDetail(root, slug, trajectory.trajId)
     if (!detail) continue
@@ -728,19 +765,28 @@ export function projectGraph(
         id: transition.id,
         shape: 'transition',
         act: transition.act,
+        target: transition.target,
         trigger: transition.trigger,
+        relation: transition.relation,
         disposition: transition.disposition,
         trajId: trajectory.trajId,
         question: trajectory.question,
         label: (transition.body ?? '').trim().split('\n')[0] ?? '',
+        body: transition.body,
         attested: transition.attested,
+        performer: transition.performer || null,
         performed: transition.performed,
+        registrar: transition.registrar,
+        registeredAt: transition.registeredAt,
+        parents: transition.parents,
+        posteriorState: transition.posteriorState,
         cited: (transition.artefacts as { ref?: string; scheme?: string }[])
           .filter((artefact) => artefact?.ref)
           .map((artefact) => ({
             ref: String(artefact.ref),
             label: String(artefact.scheme ?? 'reference'),
           })),
+        triggers: [],
       })
 
       // An artefact is the occasion, and the same occasion cited twice is one
@@ -748,22 +794,35 @@ export function projectGraph(
       // hash of its bytes.
       for (const artefact of transition.artefacts as { ref?: string; scheme?: string }[]) {
         if (!artefact?.ref) continue
+        if (artefact.scheme === 'state' && heldStates.has(artefact.ref)) continue
         const key = `artefact:${artefact.ref}`
         if (!nodes.has(key)) {
           nodes.set(key, {
             id: key,
             shape: 'artefact',
             act: null,
+            target: null,
             trigger: transition.trigger,
+            relation: null,
             disposition: null,
             trajId: null,
             question: null,
             label: artefact.ref,
+            body: null,
             attested: false,
+            performer: null,
             performed: transition.performed,
+            registrar: null,
+            registeredAt: null,
+            parents: [],
+            posteriorState: null,
             cited: [],
+            triggers: [],
           })
         }
+        const material = nodes.get(key)!
+        const trigger = transition.trigger ?? 'self'
+        if (!material.triggers.includes(trigger)) material.triggers.push(trigger)
         edges.push({ from: key, to: transition.id, kind: 'cites' })
       }
     }

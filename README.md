@@ -60,26 +60,30 @@ Reading what people have shared, and searching it, needs no account. An account 
 host, not permission to look — and a front door that showed nothing until you signed in would have
 already decided it was the authority.
 
-<img src="docs/gallery/01-front-page.png" alt="The GRA front page: a lede, a search box, and one shared project called trust with its description rendered from markdown and its two open questions listed" width="100%">
+<img src="docs/gallery/01-front-page.png" alt="The GRA front page in a near-white rose palette: a lede, a search box, and shared projects with markdown descriptions and open questions listed" width="100%">
 
 ### A project, as one graph
 
-Every question in a project, in one picture. The **green edge crosses between questions** — a
-position under one question that a connection anchored to a state under another. `parents` has
-always been a list, so this was expressible before anything could draw it.
+Every question in a project, in one picture — the demonstration record `field-memory`, which
+carries every node and edge kind the [graph model](plans/spec-graph-model.md) names. The deeper
+rose edge **crosses between questions**; the labelled capsule on a line is a **connection: a
+reified edge**, drawn as an edge and openable as a node, because it is one. Nodes drag; the view
+pans and zooms; positions are your view only, recorded nowhere.
 
 Left to right is distance from a question, not importance. Nothing is ranked, sized or coloured by
 how much it matters, and no line is marked the principal one.
 
-<img src="docs/gallery/05-trajectories.png" alt="The Trajectories tab: two questions, two positions, an objection and two connections drawn as a directed acyclic graph, with one green edge crossing between the two questions" width="100%">
+<img src="docs/gallery/05-trajectories.png" alt="The Trajectories tab: three questions, positions, objections, checks, occasion nodes for a meeting and an experiment, external works by doi and arxiv and url, with connection capsules on the lines" width="100%">
 
-### One node, in full
+### One subject, in full — including an edge
 
-Clicking a node opens a panel under the drawing, with three tabs. The distinction it exists to make
-legible is between **cited** material — committed to by hash, part of the record, immutable because
-the transition is — and a **workspace**, which is an ordinary folder that records nothing.
+Selecting anything lights what it touches and lets the rest recede. Here the selected subject is a
+**connection** — the reified SUPPORTS edge between two questions — opened as a node beneath the
+drawing with its record panel (the signed payload, the CiTO binding, registration, the full
+identifier), its disclosure panel, and **its own workspace**. The acts row records against it
+through `grrp`, whose refusals are shown verbatim.
 
-<img src="docs/gallery/06-node-panel.png" alt="The same graph with a node panel open beneath it, showing act, disposition, occasioned-by, registration, time, the question it sits under, and the full identifier" width="100%">
+<img src="docs/gallery/06-node-panel.png" alt="The graph with the SUPPORTS connection selected: its edges lit, everything else receded, and the reified edge opened as a panel with Record, Disclosure and Workspace tabs and an acts row" width="100%">
 
 ### What happened, under one question
 
@@ -91,7 +95,7 @@ No relevance ordering, no best match, no score. Matches come back in the same or
 is listed in, and the API says so in its own payload so that a second client cannot present them as
 ranked without contradicting it.
 
-<img src="docs/gallery/08-search.png" alt="The search page showing one match, with the matched word highlighted and a note that results are ordered by record then by trajectory" width="100%">
+<img src="docs/gallery/08-search.png" alt="The search page with matches highlighted and a note that results are ordered by record then by trajectory — never by relevance" width="100%">
 
 ### The trajectory, drawn by the tool itself
 
