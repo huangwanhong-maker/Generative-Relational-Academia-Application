@@ -616,7 +616,7 @@ Correspondence: huangwanhong@serendip.ngo
 ## Licence
 
 **AGPL-3.0-or-later** for the software. See [LICENSE.md](LICENSE.md).
-© 2026 Wanhong Huang and Serendip Commons Society.
+© 2026 ALL CONTRIBUTORS.
 
 The choice is not incidental. Two requirements of the design constrain it, and the AGPL discharges
 both while adding a third thing this design wants: the specification must be licensed so that **any
