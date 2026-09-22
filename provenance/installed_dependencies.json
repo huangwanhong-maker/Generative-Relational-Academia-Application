@@ -1,0 +1,83 @@
+{
+  "document_class": "Informative validation environment record",
+  "recorded_at": "2026-09-22T09:13:27.988033+00:00",
+  "python": "Python 3.12.10",
+  "node": "v22.17.0",
+  "npm": "10.9.2",
+  "python_packages": [
+    {
+      "name": "annotated-doc",
+      "version": "0.0.5"
+    },
+    {
+      "name": "cffi",
+      "version": "2.1.1"
+    },
+    {
+      "name": "colorama",
+      "version": "0.4.6"
+    },
+    {
+      "name": "cryptography",
+      "version": "50.0.1"
+    },
+    {
+      "name": "grrp",
+      "version": "0.1.0",
+      "editable_project_location": "C:\\Users\\Micro\\Desktop\\relational_being_infrastructure\\frameworks\\generativity_standards_program\\applicative_infrastructure\\gr_academia_application\\domain_packages\\grrp"
+    },
+    {
+      "name": "iniconfig",
+      "version": "2.3.0"
+    },
+    {
+      "name": "markdown-it-py",
+      "version": "4.2.0"
+    },
+    {
+      "name": "mdurl",
+      "version": "0.1.2"
+    },
+    {
+      "name": "packaging",
+      "version": "26.3"
+    },
+    {
+      "name": "pip",
+      "version": "25.0.1"
+    },
+    {
+      "name": "pluggy",
+      "version": "1.6.0"
+    },
+    {
+      "name": "pycparser",
+      "version": "3.0"
+    },
+    {
+      "name": "Pygments",
+      "version": "2.21.0"
+    },
+    {
+      "name": "pytest",
+      "version": "9.1.1"
+    },
+    {
+      "name": "rich",
+      "version": "15.0.0"
+    },
+    {
+      "name": "ruamel.yaml",
+      "version": "0.19.1"
+    },
+    {
+      "name": "shellingham",
+      "version": "1.5.4"
+    },
+    {
+      "name": "typer",
+      "version": "0.27.2"
+    }
+  ],
+  "npm_dependencies": "Reproduced unchanged web_application/package-lock.json with npm ci"
+}

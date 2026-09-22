@@ -1,0 +1,17 @@
+node_modules/
+dist/
+*.tsbuildinfo
+
+# The server's working data: records are files, and they are the record.
+# They belong to whoever runs the server, not in this repository.
+data/
+
+# The SQLite database contains private accounts as well as derived indexes.
+# Preserve it with the record tree; rebuilding an index does not restore accounts.
+*.sqlite
+*.sqlite-journal
+*.sqlite-wal
+*.sqlite-shm
+
+.env
+.env.local

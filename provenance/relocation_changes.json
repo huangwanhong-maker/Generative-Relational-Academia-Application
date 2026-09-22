@@ -1,0 +1,96 @@
+{
+  "document_class": "Informative relocation change inventory",
+  "recorded_at": "2026-09-22T09:21:47.499344+00:00",
+  "source_commit": "b98730b46eca5fdf441937aef0180f5b3d4f94dd",
+  "unchanged_imported_files": 111,
+  "changed_imported_files": [
+    {
+      "path": "domain_packages/grrp/README.md",
+      "source_path": "grrp/README.md",
+      "before_sha256": "824696282683f8fa02d6c5efe5ee9af3724efa31cc6d9cc467844824ed78e568",
+      "after_sha256": "86d1f317fabe6dba841498aa44cdabee13ae42b06c24e62f1e6001ab7277e5ed"
+    },
+    {
+      "path": "domain_packages/grrp/tools/make_vectors.py",
+      "source_path": "grrp/tools/make_vectors.py",
+      "before_sha256": "672523760d4742040a7c38cf20b40bcffd3631a06650466f2deb70e0095a3a6b",
+      "after_sha256": "e1d46f5fd540413b994fe4d51b5d76ad02ec4fc8ca8008b91e6690d74775a138"
+    },
+    {
+      "path": "web_application/README.md",
+      "source_path": "web/README.md",
+      "before_sha256": "2bd1f0050642aac79ab494bfc8c6a8b2cd4c59c326090c49bf15d720962987f1",
+      "after_sha256": "0527be3cce58696c4e28074f2daead5eaa83a29761c228ebcb3335df29c6d7c8"
+    },
+    {
+      "path": "web_application/packages/client/vite.config.ts",
+      "source_path": "web/packages/client/vite.config.ts",
+      "before_sha256": "ade591341bcefab3176e55b6d04dbf5225ab2aa2abb528067be05298f733e9c1",
+      "after_sha256": "7e28c6d8743b55474763a73895f52ebfb4bf3926608978412618c77a1d9071bd"
+    },
+    {
+      "path": "web_application/packages/server/src/cli.ts",
+      "source_path": "web/packages/server/src/cli.ts",
+      "before_sha256": "f43d347d9bbd2bdb6a4d3392da5e451b0fcdc4eaf28c68b03a5ad712ee9c7560",
+      "after_sha256": "3e6d2dfcfb23a6fc9dbc8323bac798eb64fb50180b9e33f5979551c7ca793ca0"
+    },
+    {
+      "path": "web_application/packages/server/src/main.ts",
+      "source_path": "web/packages/server/src/main.ts",
+      "before_sha256": "f5d5a15a45a78f38305d8ab5a6b65f6185677ad97863ebc6eb419a0634a0e4ce",
+      "after_sha256": "fb271161dbe3b4aca2ada10ce3f7fc7dad9d1e533343f32d1e03536bb34aed01"
+    },
+    {
+      "path": "web_application/packages/server/src/records.ts",
+      "source_path": "web/packages/server/src/records.ts",
+      "before_sha256": "11f8725786fc588ae4f95c9baf0c08c5bee73d670225c63e47593af7e55a715a",
+      "after_sha256": "9aa6df7c0fb0a2a71f6ab01420bace52984503e4418dcb32c7e33b777e8f5a70"
+    },
+    {
+      "path": "web_application/tools/demo.ts",
+      "source_path": "web/tools/demo.ts",
+      "before_sha256": "5740d4d529a8cfa5194f6959449899d5c6beb113ef406b5cea1497271e7cb792",
+      "after_sha256": "671f10b3c020bf895228f60b2be8672dfa97dcd42ee00a45aaf6cc3604fe40af"
+    },
+    {
+      "path": "web_application/tools/gallery.mjs",
+      "source_path": "web/tools/gallery.mjs",
+      "before_sha256": "35541e919fe0d771a0951ec6af8956ad5328df6cdd0f7da50007b52b625d4761",
+      "after_sha256": "165821d8a5c0728ce0f8929f7804983fcf24dc2995d22da3034e6a0ef32fec39"
+    },
+    {
+      "path": "web_application/tools/shot.mjs",
+      "source_path": "web/tools/shot.mjs",
+      "before_sha256": "022a600e1befd8b2dd75ff94d79a6e5d0e6d98d88b1db1e5ca15a1b2c7f803dd",
+      "after_sha256": "6c484c589e1ed1571102fd23b5ff93e8278678edae3ed1ae26c376004808008c"
+    }
+  ],
+  "new_source_files": [
+    {
+      "path": ".gitignore",
+      "sha256": "02eda60a950230e5db058469c2cfe5d7477f5107c60ce8031e867cd688ddcb53"
+    },
+    {
+      "path": "LICENSE",
+      "sha256": "0d96a4ff68ad6d4b6f1f30f713b18d5184912ba8dd389f86aa7710db079abcb0"
+    },
+    {
+      "path": "README.md",
+      "sha256": "7e4998bf1fa1dfb1018800811b925d365c8ee4868be1875f6542fbf451016dd6"
+    },
+    {
+      "path": "web_application/packages/server/src/runtime.ts",
+      "sha256": "4bc4a8ba8a63fb9aee0c531146967a71160b1cf2f97b385ca6beb7e69d8bae6c"
+    },
+    {
+      "path": "web_application/packages/server/test/runtime.test.ts",
+      "sha256": "af99dd878b9a3e46490b8a36751001c5b12481f1bb7030341d2b374d507ec39c"
+    }
+  ],
+  "provenance_artifacts": "Listed separately under provenance. import_manifest.initial.json preserves the original baseline artifact; import_manifest.json explicitly corrects raw-blob/export labels without changing imported_sha256 values.",
+  "hash_basis": {
+    "before_sha256": "Exact initial destination bytes from git archive export; imported_sha256 in both initial and corrected import manifests. Not raw Git blob bytes.",
+    "after_sha256": "Exact relocated destination bytes after documented edits.",
+    "unchanged_imported_files": "Files byte-identical to the initial archive-export import."
+  }
+}

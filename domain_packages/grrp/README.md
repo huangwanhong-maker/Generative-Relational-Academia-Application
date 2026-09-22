@@ -1,0 +1,352 @@
+# grrp
+
+Reference implementation of the **Generative Relational Research Protocol v0.1**, specified in
+[*Specifying the GRRP*](../../papers/GRA-paper-IV-Specifying-the-GRRP.pdf). **The specification governs
+where the two differ.**
+
+A command-line tool that records the trajectory of an inquiry as **typed transitions** in an ordinary
+git repository, in plain text, **with no server, no account, and no network**.
+
+**Status: M0–M4, plus a local page.** All eight acts, redaction, attestation, attribution and absorption, grounded
+disclosure, and portability. **All eight acceptance tests pass.** M5 is the conformance suite.
+
+---
+
+## The unit of record
+
+Not a document. Not a comment. A **transition**: an identified prior state became an identified
+posterior state, through a typed act performed by a party and registered by a party.
+
+```
+state s_k  ──[ act: challenge · target: assumption · relation: cito:disagreesWith ]──▶  s_k+1
+               performer: key:ed25519:…    disposition: unresolved
+```
+
+A **trajectory** is the directed acyclic graph of these. **The current state is computed from the
+graph on demand and is never stored as an authority** — a stored snapshot becomes the thing people
+trust, the log drifts from it or is edited to match it, and every claim about integrity fails at once.
+
+## Install and use
+
+```bash
+pipx install -e .          # or: python -m pip install -e .
+
+grrp init
+grrp new "Is trust a property obtaining between individuals?"
+grrp claim      -m "Trust obtains between individuals."
+grrp challenge  -m "This omits institutional power."
+grrp transform  -m "Trust is a process shaped by asymmetry of power." --answering <challenge>
+grrp decide     --abandon        # no -m: opens your editor and asks for the reason
+grrp connect    --to doi:10.1234/x -m "Same obstruction, other field."
+grrp verify     --failed -m "Ran it on the target domain; independence fails."
+grrp redact     <state> --ground consent_withdrawn
+
+grrp show                  # where this stands: question, live positions, what is open
+grrp open                  # what you still owe an answer to — and the entry path
+grrp state                 # the live positions, derived
+grrp log
+grrp release               # publishes, enumerating objections that still stand
+grrp export <release> -o paper.md
+grrp check                 # verify the record, and this tool against the protocol
+grrp ui                    # a local page, if you would rather see it than read it
+```
+
+### The page
+
+```bash
+grrp ui        # anywhere — it does not need a record to exist yet
+```
+
+Serves a page on the loopback interface. From it you can **start a record** (a directory, and a git
+repository inside it if you want one), open a question, record any act, register a colleague's
+proposal, release, and **see the trajectory drawn**: one column per step away from the question,
+edges labelled by the act that made them, divergent branches side by side and drawn identically.
+
+It is **Level 3 — an application over the record, outside conformance**. Everything it offers is
+available from the command line, no module of the record imports it, and deleting it would leave the
+record untouched. That last claim is checked by a test rather than asserted. Stdlib only, no account,
+nothing leaves the machine.
+
+It is tested for what the design forbids, because a screen is where the temptation is strongest:
+no quantity over participants or trajectories, no branch marked principal *in the drawing or
+anywhere else*, no control that narrows disclosure, no approve or veto, and the word *merge* nowhere
+at all — not in the page, not in the stylesheet.
+
+A test also asserts that a record written from the page and one written from the terminal are the
+same record. Both go through [`actions.py`](src/grrp/actions.py), so the page is an application over
+the protocol rather than a second implementation of it.
+
+### Credit
+
+```bash
+grrp claim -m "…" --contributor bo=Methodology     # CRediT roles, attached to the act
+grrp transform -m "…" --from <state>               # content you took, credited to its producer
+grrp transform --with <state> -m "…"               # a synthesis drawing on several branches
+grrp contest <tx> -m "…"                           # this attribution is wrong
+```
+
+Attribution attaches to **an act**, not to a finished work. A contributor statement says a person
+contributed to a paper; this says which change in the content of a claim a person produced.
+
+An absorption link confers **attribution and no power to prevent, condition or reverse the use**.
+Rights to exclude, multiplied across many small contributions, produce the fragmentation in which
+downstream work needs so many permissions that it does not occur. A party who does not want their
+state absorbed has one instrument, and it is the disclosure class of that state.
+
+`grrp contest` records that an attribution is wrong. Nothing is deleted or altered, and **no party is
+empowered to settle it** — what the record contributes is that both positions are visible with their
+dates.
+
+### Leaving
+
+```bash
+grrp bundle -o traj.zip        # the complete record: no permission, no service
+grrp continue traj.zip         # anywhere, under any implementation
+grrp profile --json            # what another implementation needs to read it
+grrp deposit <release> -o dir/ # an archival package, released material only
+grrp custody add "the departmental archive"
+grrp custody succession "passes to …"
+```
+
+**Portability is not export.** A data dump leaves you with an archive. What matters is that the
+record can be *continued* elsewhere, with what you record next referencing what you obtained as
+parents — **one graph, not two**. That capacity is the only bound this design places on the authority
+of anyone holding a position over your record, including whoever wrote this tool.
+
+Records that arrive are **copied byte for byte and never normalised** — rewriting them would
+invalidate their signatures. A signature that will not verify, a parent that is absent, a version
+this tool cannot read: each is **retained and marked**, never discarded, because discarding what an
+implementation does not understand is how a record quietly becomes a different record.
+
+Two parties continuing the same record independently produce **a divergence**. Both are kept, neither
+is principal, and no reconciliation is offered.
+
+### Not ready to show anyone
+
+```bash
+grrp seal -m "…"          # records that you held this, at this time. Not what it is.
+grrp openseal <state>     # later, when you choose
+```
+
+It **does not establish priority** — priority is a community's recognition of a claim, and no tool
+manufactures that. A sealed state **generates nothing**: no objection, no connection, no encounter,
+because nobody can see it. And an unanchored time is your own assertion; it becomes evidence to
+someone who does not trust you only if you publish the identifier somewhere you do not control.
+
+### Withholding
+
+```bash
+grrp charter adopt --classes private,group,public   # yours to decide; there is no default set
+grrp grounds                                        # the four, and what each leaves disclosable
+grrp disclose <tx> --class private --ground appropriability
+grrp disclose <tx> --class private --ground vulnerability --release-at 2027-01-01
+```
+
+The question is never whether to withhold but **on what ground — and what follows from the ground**.
+There are four, the set is closed, and each leaves a **residue that must still be disclosed**:
+
+| ground | restricts | residue |
+|---|---|---|
+| **rivalry** | access to the resource | **the trajectory in full** |
+| **hazard** | the propagable content of a method | existence, questions, decisions, interpretations, results that do not convey the method |
+| **vulnerability** | the timing of exposure | **everything, at the scheduled time** |
+| **appropriability** | content whose disclosure destroys excludability | existence, questions, decisions, **negative results** |
+
+Declaring a ground prints its residue and the named failure it becomes if misapplied. That residue is
+the one question a reader can always ask: *was what the ground leaves disclosable in fact disclosed?*
+
+**Disclosure may widen and never narrow.** There is no `unpublish`. A schedule belongs only to
+vulnerability — the only ground with a terminus — fires by itself at the stated time, and **may be
+shortened but never extended**; an attempt to extend is refused *and recorded*, because a delay that
+can be extended indefinitely is a permanent withholding made to look temporary.
+
+### Two parties
+
+A record you registered yourself is useful to you and is **evidence to nobody**. One colleague's key
+is what makes it evidence, and it is the whole of the setup that takes.
+
+```bash
+grrp key mine                      # hand this to them
+grrp key add bo key:ed25519:…      # they do the same with yours
+                                   # the record is now at the group tier
+
+grrp claim -m "Trust obtains between individuals."
+#   claim  a72fe32c349e  (proposed)
+#   not yet in the log. Another party registers it:
+#     grrp register a72fe32c349e
+
+grrp pending                       # what waits on you, and what of yours waits on them
+grrp register a72fe32c349e         # they run this; you cannot
+grrp withdraw <tx>                 # a registrar undoing their own attestation
+```
+
+At the group tier **you cannot register your own act**, so what you perform is a proposal until
+someone else takes responsibility for it. That is where a record's credibility comes from: not from
+its content, its length or its detail, but from being registered by parties who did not coordinate.
+
+`grrp register` refuses when the two keys are identical, and names the constraint. A withdrawal is
+itself an act, so it too must be registered by another party — the rule does not bend for the party
+undoing something.
+
+`GRRP_KEY=<name>` selects which local key acts, for a machine two parties share and for the tests.
+
+**You rarely need to name a state.** `challenge`, `transform`, `decide` and `release` default to the
+live position, which is what you almost always mean, and saves copying a hash out of one command into
+the next. Where two positions are live they refuse and list both with their text — nothing in the
+design gives the tool a basis for picking one.
+
+**Omit `-m` and your editor opens**, with a prompt for the act you are performing. `decide` gets the
+longest prompt, because articulating why a direction was set aside is the expensive act and the one
+everything else depends on. Set `$GRRP_EDITOR` if you want a different editor here than in git.
+
+Every command's `--help` states **`Purpose (for you):`** — what the person running it gets. That is
+checked by the test suite, because the reason every comparable system since 1970 went unadopted is
+that the work of recording fell on the party who gained least from the record.
+
+## Layout
+
+```
+.grrp/
+  profile.yaml              protocol version, tier, hash, canonicalisation, party, vocabularies
+  keys/self.pub             the private key is gitignored and never leaves the machine
+  events/                   local event plane — gitignored, never exported
+trajectories/<traj-id>/
+  trajectory.yaml
+  states/<hash>.md          content: separable, redactable
+  transitions/<hash>.yaml   skeleton: append-only, never rewritten
+  disclosure/<hash>.yaml    sidecar (M3): class and ground, outside the identifier
+  releases/<hash>.yaml
+```
+
+## Two design decisions worth stating
+
+**Disclosure is a sidecar, not a field in the transition file.** The illustrative skeleton in the
+build brief shows `disclosure:` inline. Keeping it there forces a choice between two rules that both
+have to hold: *any edit under `transitions/` is detected*, and *changing a class or a scheduled
+release firing invalidates nothing*. Putting disclosure in `disclosure/<id>.yaml` lets both stay
+strict, and it is what the specification's own git deployment (§21.5) recommends for the same reason.
+Touches **C3, C7, C8**.
+
+**Registration is excluded from the identifier; the signature covers the identifier.** The identifier
+is computed over the covered payload and the parent identifiers, and excludes `registration` and
+`disclosure`. A signature (M3) will cover `{id, registrar, time}`, so it binds the registrar and the
+time without self-reference and stays valid when disclosure widens or content is redacted. The cost,
+stated plainly: at the personal tier, where nothing is signed, **editing the `registration` block of a
+transition is not detectable by `grrp check`.** Every covered field is. This is acceptable only
+because the personal tier carries no evidential weight in the first place, and it closes at M3.
+
+## Derivation rules
+
+Views are computed, never stored. The rules are choices you are entitled to disagree with, so they
+are stated in one place ([`views.py`](src/grrp/views.py)):
+
+| | |
+|---|---|
+| produces a state | every act writes a posterior state |
+| **supersedes** its prior | `transformation` only |
+| **retires** its prior | `decision` whose relation is `cito:retracts` (i.e. `--abandon`) |
+| a **live position** | posterior of `claim` or `transformation`, not superseded and not retired |
+| **answered** | a challenge or failed verification that a later `transformation` or `decision` names among its parents |
+
+A trajectory's opening **question is a state and not a position**: it is what the work is about, it
+does not stop being so when someone takes a view, and it stays on the open register until something
+answers it. It also anchors the first claim, so that even the first transition references an
+identified prior state rather than the project as a whole.
+
+Objections, decisions and releases produce states too, but those are annotations on a position rather
+than positions themselves, so they are not candidates for "the current state". Nothing is edited to
+mark a challenge answered — the graph already records it.
+
+## What this tool will not do
+
+- **No scores, rankings, counts across trajectories, or dashboards.** No quantity over participants
+  or over trajectories is computed, stored, displayed or exported. Counts *within* one trajectory,
+  shown without comparison, are permitted. When something feels like it wants a number, that is the
+  constraint working.
+- **No merge.** Two revisions of a concept do not compose, no conflict region localises, and no test
+  decides the result. Integration is a **synthesis** (a state with several parents) or an
+  **absorption** (content taken with attribution). The word does not appear in the interface.
+- **No principal branch.** Where the work diverges, both directions are kept and neither is marked
+  canonical, default or current. In inquiry a fork is frequently the correct outcome.
+- **No unpublish.** Disclosure may widen and never narrow. A party who has read a record retains what
+  they read, and an operation offering the appearance of withdrawal would misdescribe the world to the
+  people relying on it.
+- **No model, no network, no database.** Every operation runs with a text editor and git. A model may
+  *propose* a transition and may not author or register one; a model-originated proposal is marked as
+  such (`trigger: ai_suggestion`).
+- **No editing.** A recorded transition is never altered or removed. A correction is a further
+  transition referencing the one corrected.
+- **No silent erasure.** `redact` removes a state's content and leaves everything else: that the
+  transition occurred, by whom, of what type, where in the graph — and that a redaction was performed
+  and on what ground. A system that erased the trace of an erasure would leave a record misdescribing
+  its own history in a way no later reader could detect. It also tells you plainly that earlier git
+  commits still hold the text, because possibility is not lawfulness.
+
+## Bindings
+
+Relations bind to **CiTO**, contributor roles to **CRediT**, provenance concepts to **PROV**. Values
+stored are identifiers, never display labels — a record holding the word `extends` is uninterpretable
+once a second vocabulary uses the same word differently. Three relations the design names have no CiTO
+counterpart (`generalises`, `specialises`, `transfers`); they are available as `local:` values, are
+flagged as local, and need a charter to define them.
+
+## Records are bytes
+
+A state's identifier is the **hash of the bytes of its file**, so anyone holding the file can check
+it with `sha256sum` and no knowledge of this tool:
+
+```bash
+sha256sum trajectories/*/states/*.md      # the hash is the filename
+```
+
+Nothing in a record is ever written in text mode, because that translates newlines on the way out and
+would leave a file whose name is a hash of something the file no longer contains. `grrp init` also
+writes a `.gitattributes` telling git not to rewrite the record on checkout, and `grrp check`
+verifies that every state's content still yields its identifier.
+
+## A walkthrough
+
+```bash
+bash examples/walkthrough.sh        # all four phases
+bash examples/walkthrough.sh 1      # just the first
+```
+
+Works the philosophy case from the specification: a claim about trust, an objection that it omits
+institutional power, a transformation accepting it, a second objection that is never resolved, a
+divergence, and a release enumerating the objection still standing. Then a failed check and an
+abandoned direction, a second party registering, and finally withholding on a ground and leaving
+with the record.
+
+It builds everything under `./grrp-walkthrough` and touches nothing else.
+
+## Tests
+
+```bash
+python -m pytest
+```
+
+The acceptance tests are written against the constraints, not the features:
+
+| | |
+|---|---|
+| 1 | no scalar over participants or trajectories, in source or in any command's output |
+| 2 | the whole flow runs with no network, no model and no service |
+| 3 | every command's `--help` names the purpose it serves for the person running it |
+| 4 | editing anything under `transitions/` is detected by `grrp check` |
+| 5 | a disclosure change does not invalidate verification |
+| 6 | after `grrp redact`, the chain verifies, the graph is unchanged, and the redaction is recorded |
+| 7 | `grrp register` refuses when performer and registrar are identical |
+| — | acts default to the live position, and refuse rather than guess at a divergence |
+| — | omitting `-m` opens an editor; the prompt below the cut is never recorded |
+| 8 | *(M4)* `bundle` here, `continue` there, one graph and not two — **skipped** |
+
+Skipped tests are present and named, so what is not yet built is visible rather than absent.
+
+## Next
+
+Use it on real work for two weeks before M2. Record what was annoying — those notes are the input to
+everything after this, and they belong in a trajectory.
+
+## Licence
+
+**MIT** — see the application [LICENSE](../../LICENSE), [scope notes](../../LICENSE.md) and [CONTRIBUTORS.md](../../CONTRIBUTORS.md). Copyright remains with the respective contributors. The [licensing history](../../provenance/LICENSING_NOTES.md) records the earlier inconsistent notices and the explicit additional MIT grant; archived source and historical notices remain preserved. This software license does not determine the rights in research records created with the tool.

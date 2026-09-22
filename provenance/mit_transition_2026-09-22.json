@@ -1,0 +1,53 @@
+{
+  "document_class": "Informative licensing transition record",
+  "date": "2026-09-22",
+  "authority": "Explicit project-owner instruction to use MIT for all four project repositories and credit contributors, recorded in the development session.",
+  "license": "MIT",
+  "scope": "Project-authored software, specifications, documentation, research papers, and other project-controlled materials in the current repository; additional grant where earlier project-authored copies retain historical notices.",
+  "exclusions": [
+    "Third-party components and reproduced external material",
+    "User research records and private runtime data",
+    "No retrospective rewriting of source history or historical licence texts"
+  ],
+  "previous_notices": [
+    {
+      "previous_path": "LICENSE.md",
+      "preserved_path": "docs/history/LICENSE.before-MIT.md",
+      "sha256": "eb10bc17c76529f1d238ae97a08b3ad8f448320822bb28ca1e9086cc7f20650b"
+    },
+    {
+      "previous_path": "LICENSE",
+      "preserved_path": "docs/history/AGPL-3.0.txt",
+      "sha256": "0d96a4ff68ad6d4b6f1f30f713b18d5184912ba8dd389f86aa7710db079abcb0"
+    },
+    {
+      "previous_path": "provenance/LICENSING_NOTES.md",
+      "preserved_path": "docs/history/LICENSING_NOTES.before-MIT.md",
+      "sha256": "af7b0ab32d77abe75896a40710d9093926b9cf68d7f4f055e1711eb124824661"
+    }
+  ],
+  "unchanged_artifacts": [
+    {
+      "path": "provenance/original-history.bundle",
+      "sha256": "1915062bd4aa28b04944a5ddf694909342a9566fe1e7239edf7325d8ba441647"
+    },
+    {
+      "path": "papers/GRA-paper-I-Designing-Generative-Relational-Academic-Infrastructure.pdf",
+      "sha256": "9f95c2c651b99c59ee028f8c4c649fc677d326daf105842e420d699e0fed72c1"
+    },
+    {
+      "path": "papers/GRA-paper-II-Incentives-Collective-Action-and-Adoption.pdf",
+      "sha256": "6d998abf1524ce77ca03e9c41b675092c9ea60285d247957393c6ba44d75a2cf"
+    },
+    {
+      "path": "papers/GRA-paper-III-Grounds-of-Restriction.pdf",
+      "sha256": "8cddc11763b0ace4e21c89336c53ffd5ffaf30aba208152f22949d0fc7c27883"
+    },
+    {
+      "path": "papers/GRA-paper-IV-Specifying-the-GRRP.pdf",
+      "sha256": "4cfacca3b9478fc0557eaec90dade557eec732feeafa839cb11062c842cf38e0"
+    }
+  ],
+  "source_reference": "https://opensource.org/license/mit",
+  "transition_note": "provenance/LICENSING_NOTES.md"
+}

@@ -1,0 +1,10 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+build/
+dist/
+.venv/
+
+# Demo output from examples/walkthrough.sh. Yours to delete.
+grrp-walkthrough/

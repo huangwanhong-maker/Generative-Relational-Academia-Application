@@ -1,5 +1,7 @@
 # Shell scripts must keep LF endings, or bash reads `pipefail\r` and reports an
 # invalid option in a message the carriage return has already mangled.
+# Disable implicit normalization except for the explicit shell-script rule.
+* -text
 *.sh text eol=lf
 
 # The PDFs are bytes.
