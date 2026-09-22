@@ -141,3 +141,5 @@ Commit academia source changes here, then update the application reference in in
 Publish academia's commits before the infrastructure commit that references them, followed by the programme's infrastructure update. Select a development branch before committing in an initialized submodule, which normally begins with a detached HEAD. Existing remote ancestry is preserved through ordinary fast-forward publishing.
 
 Project-authored software, documentation and research material are available under the [MIT License](LICENSE), with copyright held by contributors recorded in [CONTRIBUTORS.md](CONTRIBUTORS.md). [LICENSE.md](LICENSE.md) and [licensing provenance](provenance/LICENSING_NOTES.md) explain the additional grant and retained historical notices. Third-party components and user-created research records retain their own terms.
+
+Copyright (c) 2026 all contributors listed in [CONTRIBUTORS.md](CONTRIBUTORS.md), for their respective contributions.
