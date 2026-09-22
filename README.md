@@ -3,6 +3,8 @@
 **Class:** Domain application and development guide  
 **Status:** Experimental application retaining native GRRP v0.1
 
+**Source repository:** [Generative-Relational-Academia-Application](https://github.com/huangwanhong-maker/Generative-Relational-Academia-Application)
+
 Generative Relational Academia records research as an evolving trajectory: questions, positions, objections, transformations, decisions and connections can remain inspectable alongside the material through which inquiry develops. The web application presents projects, trajectories and record workspaces; the native Python implementation also supports local command-line use.
 
 This repository is the academia application within the Generativity Standards Program. Its existing GRRP identifiers, signatures, transition rules and domain behavior are preserved. Alignment with the generalized application's record protocol remains separate design and implementation work. Imported theoretical papers retain their historical role; the current programme manuscripts and recorded decisions guide programme-level interpretation.
@@ -36,6 +38,15 @@ gr_academia_application/                This application Git repository
 The application is a submodule of [applicative_infrastructure](../README.md), which pins a specific revision. Its original Git ancestry is retained, and the [provenance guide](provenance/README.md) records the original source commit, archived bundle and path mapping. The original overview remains in [docs/history/original_README.md](docs/history/original_README.md); its historical status and licensing statements should be read with the current scope notes.
 
 Native Python grrp and TypeScript @gra/protocol remain domain packages. This application does not yet use the common generalized record protocol or Git transaction implementation. It has independent accounts, permissions and runtime records. Links to the parent [Programme Brief](../../PROGRAMME_BRIEF.md) and [specifications](../../specifications/) resolve when the complete programme is checked out.
+
+For the supported combined development layout, clone infrastructure with its submodules using GitHub SSH access:
+
+~~~powershell
+git clone --recurse-submodules git@github.com:huangwanhong-maker/Generativity-Relational-Epistemic-Applicative-Infrastructure.git applicative_infrastructure
+cd applicative_infrastructure
+~~~
+
+To obtain only academia's source, use `git clone git@github.com:huangwanhong-maker/Generative-Relational-Academia-Application.git gr_academia_application`. For the complete programme and canonical publications, recursively clone [Generativity-Epistemic-Infrastructure](https://github.com/huangwanhong-maker/Generativity-Epistemic-Infrastructure). Its [Git workflow guide](https://github.com/huangwanhong-maker/Generativity-Epistemic-Infrastructure/blob/main/docs/development/git_repository_layers.md) covers Windows SSH configuration and remotes.
 
 ## Install and run
 
@@ -126,5 +137,7 @@ Demo tools create accounts and research records. Use a separate explicitly confi
 ## Contributing and license
 
 Commit academia source changes here, then update the application reference in infrastructure and its reference in the programme. Keep native protocol vectors and preservation tests alongside behavioral changes. Record cross-domain mapping decisions in the programme and shared design material rather than silently changing domain meaning.
+
+Publish academia's commits before the infrastructure commit that references them, followed by the programme's infrastructure update. Select a development branch before committing in an initialized submodule, which normally begins with a detached HEAD. Existing remote ancestry is preserved through ordinary fast-forward publishing.
 
 Project-authored software, documentation and research material are available under the [MIT License](LICENSE), with copyright held by contributors recorded in [CONTRIBUTORS.md](CONTRIBUTORS.md). [LICENSE.md](LICENSE.md) and [licensing provenance](provenance/LICENSING_NOTES.md) explain the additional grant and retained historical notices. Third-party components and user-created research records retain their own terms.
